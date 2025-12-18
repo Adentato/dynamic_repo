@@ -1,12 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
-import { signIn } from '@/lib/supabase/auth'
+import { signInAction } from '@/app/actions/auth'
 import { signInSchema, type SignInInput } from '@/lib/validations/auth'
 import { Button } from '@/components/ui/button'
 import {
@@ -20,7 +19,6 @@ import {
 import { Input } from '@/components/ui/input'
 
 export default function LoginPage() {
-  const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -37,22 +35,14 @@ export default function LoginPage() {
     setError(null)
 
     try {
-      const { user, error: signInError } = await signIn(
-        values.email,
-        values.password
-      )
+      const result = await signInAction(values)
 
-      if (signInError) {
-        setError(signInError.message)
-        return
-      }
-
-      if (user) {
-        router.push('/dashboard')
+      if (result?.error) {
+        setError(result.error)
+        setIsLoading(false)
       }
     } catch (err) {
       setError('Une erreur est survenue. Veuillez réessayer.')
-    } finally {
       setIsLoading(false)
     }
   }

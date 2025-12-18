@@ -1,5 +1,8 @@
+'use client'
+
 import Link from 'next/link'
 
+import { signOutAction } from '@/app/actions/auth'
 import { getCurrentUser } from '@/lib/supabase/auth'
 import { Button } from '@/components/ui/button'
 import {
@@ -11,9 +14,20 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { useEffect, useState } from 'react'
 
-export async function Navbar() {
-  const currentUser = await getCurrentUser()
+export function Navbar() {
+  const [currentUser, setCurrentUser] = useState<Awaited<ReturnType<typeof getCurrentUser>> | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const user = await getCurrentUser()
+      setCurrentUser(user)
+      setIsLoading(false)
+    }
+    fetchUser()
+  }, [])
 
   return (
     <nav className="border-b border-zinc-200 bg-white">
@@ -26,7 +40,7 @@ export async function Navbar() {
           </Link>
 
           <div className="flex items-center gap-4">
-            {currentUser && currentUser.profile ? (
+            {!isLoading && currentUser && currentUser.profile ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center gap-2 rounded-full p-1 hover:bg-zinc-100">
@@ -53,20 +67,22 @@ export async function Navbar() {
                     <Link href="/settings">Paramètres</Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/api/auth/signout">Se déconnecter</Link>
+                  <DropdownMenuItem onClick={() => signOutAction()}>
+                    Se déconnecter
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <>
-                <Link href="/login">
-                  <Button variant="ghost">Connexion</Button>
-                </Link>
-                <Link href="/signup">
-                  <Button>S'inscrire</Button>
-                </Link>
-              </>
+              !isLoading && (
+                <>
+                  <Link href="/login">
+                    <Button variant="ghost">Connexion</Button>
+                  </Link>
+                  <Link href="/signup">
+                    <Button>S'inscrire</Button>
+                  </Link>
+                </>
+              )
             )}
           </div>
         </div>

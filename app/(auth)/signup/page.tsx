@@ -1,12 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
-import { signUp } from '@/lib/supabase/auth'
+import { signUpAction } from '@/app/actions/auth'
 import { signUpSchema, type SignUpInput } from '@/lib/validations/auth'
 import { Button } from '@/components/ui/button'
 import {
@@ -20,7 +19,6 @@ import {
 import { Input } from '@/components/ui/input'
 
 export default function SignupPage() {
-  const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -39,23 +37,18 @@ export default function SignupPage() {
     setError(null)
 
     try {
-      const { user, error: signUpError } = await signUp(
-        values.email,
-        values.password,
-        values.full_name
-      )
+      const result = await signUpAction({
+        email: values.email,
+        password: values.password,
+        fullName: values.full_name,
+      })
 
-      if (signUpError) {
-        setError(signUpError.message)
-        return
-      }
-
-      if (user) {
-        router.push('/onboarding')
+      if (result?.error) {
+        setError(result.error)
+        setIsLoading(false)
       }
     } catch (err) {
       setError('Une erreur est survenue. Veuillez réessayer.')
-    } finally {
       setIsLoading(false)
     }
   }
