@@ -1,9 +1,9 @@
 'use client'
 
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 
-import { signOutAction } from '@/app/actions/auth'
-import { getCurrentUser } from '@/lib/supabase/auth'
+import { signOutAction, getCurrentUserAction } from '@/app/actions/auth'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -14,15 +14,14 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { useEffect, useState } from 'react'
 
 export function Navbar() {
-  const [currentUser, setCurrentUser] = useState<Awaited<ReturnType<typeof getCurrentUser>> | null>(null)
+  const [currentUser, setCurrentUser] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     const fetchUser = async () => {
-      const user = await getCurrentUser()
+      const user = await getCurrentUserAction()
       setCurrentUser(user)
       setIsLoading(false)
     }
@@ -48,7 +47,7 @@ export function Navbar() {
                       <AvatarFallback className="text-xs">
                         {currentUser.profile.full_name
                           .split(' ')
-                          .map((n) => n[0])
+                          .map((n: string) => n[0])
                           .join('')
                           .toUpperCase()}
                       </AvatarFallback>

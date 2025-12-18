@@ -54,3 +54,45 @@ export async function signOutAction() {
   revalidatePath('/', 'layout')
   redirect('/')
 }
+
+export async function getCurrentUserAction() {
+  const supabase = await createClient()
+
+  const { data: authData } = await supabase.auth.getUser()
+
+  if (!authData.user) {
+    return null
+  }
+
+  const user = authData.user
+
+  // Fetch profile
+  const { data: profileData } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .single()
+
+  if (!profileData) {
+    return null
+  }
+
+  const profile = profileData
+
+  // Fetch organization
+  const { data: memberData } = await supabase
+    .from('organization_members')
+    .select(
+      'organization_id, organizations(id, name, slug, description, created_at, updated_at, created_by)'
+    )
+    .eq('user_id', user.id)
+    .single()
+
+  let organization = null
+
+  if (memberData && memberData.organizations) {
+    organization = memberData.organizations as any
+  }
+
+  return { user, profile, organization }
+}
