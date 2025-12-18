@@ -9,6 +9,10 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
+    "@radix-ui/react-avatar": "^1.1.11",
+    "@radix-ui/react-dropdown-menu": "^2.1.16",
+    "@radix-ui/react-label": "^2.1.8",
     "@radix-ui/react-slot": "^1.2.4",
     "@supabase/ssr": "latest",
     "@supabase/supabase-js": "latest",
@@ -16,12 +20,14 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dotenv": "^17.2.3",
-    "lucide-react": "latest",
+    "lucide-react": "^0.562.0",
     "next": "^15.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-hook-form": "^7.68.0",
     "tailwind-merge": "^2.6.0",
-    "zod": "latest"
+    "tailwindcss-animate": "^1.0.7",
+    "zod": "^4.2.1"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

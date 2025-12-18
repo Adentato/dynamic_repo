@@ -1,13 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
-import { signUp } from '@/lib/supabase/auth'
-import { signUpSchema, type SignUpInput } from '@/lib/validations/auth'
+import { createOrganization } from '@/lib/supabase/organizations'
+import {
+  createWorkspaceSchema,
+  generateSlug,
+  type CreateWorkspaceInput,
+} from '@/lib/validations/workspace'
 import { Button } from '@/components/ui/button'
 import {
   Form,
@@ -19,39 +22,47 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 
-export default function SignupPage() {
+export default function OnboardingPage() {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
-  const form = useForm<SignUpInput>({
-    resolver: zodResolver(signUpSchema),
+  const form = useForm<CreateWorkspaceInput>({
+    resolver: zodResolver(createWorkspaceSchema),
     defaultValues: {
-      full_name: '',
-      email: '',
-      password: '',
-      confirm_password: '',
+      name: '',
+      slug: '',
+      description: '',
     },
   })
 
-  const onSubmit = async (values: SignUpInput) => {
+  // Auto-generate slug when name changes
+  useEffect(() => {
+    const name = form.getValues('name')
+    if (name) {
+      const generatedSlug = generateSlug(name)
+      form.setValue('slug', generatedSlug)
+    }
+  }, [form.watch('name'), form])
+
+  const onSubmit = async (values: CreateWorkspaceInput) => {
     setIsLoading(true)
     setError(null)
 
     try {
-      const { user, error: signUpError } = await signUp(
-        values.email,
-        values.password,
-        values.full_name
+      const { organization, error: createError } = await createOrganization(
+        values.name,
+        values.slug,
+        values.description
       )
 
-      if (signUpError) {
-        setError(signUpError.message)
+      if (createError) {
+        setError(createError.message)
         return
       }
 
-      if (user) {
-        router.push('/onboarding')
+      if (organization) {
+        router.push('/dashboard')
       }
     } catch (err) {
       setError('Une erreur est survenue. Veuillez réessayer.')
@@ -64,9 +75,12 @@ export default function SignupPage() {
     <div className="min-h-screen flex items-center justify-center bg-zinc-50 px-4">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-          <h2 className="text-3xl font-bold text-zinc-900">S'inscrire</h2>
+          <h2 className="text-3xl font-bold text-zinc-900">
+            Créez votre workspace
+          </h2>
           <p className="mt-2 text-zinc-600">
-            Créez votre compte pour commencer
+            Votre workspace est l'espace où vous allez organiser vos recherches
+            UX.
           </p>
         </div>
 
@@ -81,74 +95,63 @@ export default function SignupPage() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
-                name="full_name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-zinc-700">Nom complet</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Jean Dupont"
-                        {...field}
-                        disabled={isLoading}
-                      />
-                    </FormControl>
-                    <FormMessage className="text-red-600" />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-zinc-700">Email</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="vous@exemple.com"
-                        type="email"
-                        {...field}
-                        disabled={isLoading}
-                      />
-                    </FormControl>
-                    <FormMessage className="text-red-600" />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-zinc-700">Mot de passe</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="••••••••"
-                        type="password"
-                        {...field}
-                        disabled={isLoading}
-                      />
-                    </FormControl>
-                    <FormMessage className="text-red-600" />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="confirm_password"
+                name="name"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-zinc-700">
-                      Confirmer le mot de passe
+                      Nom du workspace
                     </FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="••••••••"
-                        type="password"
+                        placeholder="Mon workspace UX"
                         {...field}
                         disabled={isLoading}
+                      />
+                    </FormControl>
+                    <FormMessage className="text-red-600" />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="slug"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-zinc-700">URL</FormLabel>
+                    <FormControl>
+                      <div className="flex items-center">
+                        <span className="text-zinc-600 text-sm mr-2">
+                          /workspace/
+                        </span>
+                        <Input
+                          placeholder="mon-workspace-ux"
+                          {...field}
+                          disabled={isLoading}
+                          className="flex-1"
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage className="text-red-600" />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-zinc-700">
+                      Description (optionnel)
+                    </FormLabel>
+                    <FormControl>
+                      <textarea
+                        placeholder="Décrivez votre workspace..."
+                        {...field}
+                        disabled={isLoading}
+                        className="w-full px-3 py-2 border border-zinc-300 rounded-md text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 resize-none"
+                        rows={4}
                       />
                     </FormControl>
                     <FormMessage className="text-red-600" />
@@ -161,29 +164,10 @@ export default function SignupPage() {
                 className="w-full"
                 disabled={isLoading}
               >
-                {isLoading ? 'Création en cours...' : 'Créer mon compte'}
+                {isLoading ? 'Création en cours...' : 'Créer mon workspace'}
               </Button>
             </form>
           </Form>
-
-          <div className="relative my-4">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-zinc-300"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-zinc-500">ou</span>
-            </div>
-          </div>
-
-          <p className="text-center text-sm text-zinc-600">
-            Vous avez déjà un compte ?{' '}
-            <Link
-              href="/login"
-              className="font-medium text-zinc-900 hover:text-zinc-700"
-            >
-              Se connecter
-            </Link>
-          </p>
         </div>
       </div>
     </div>
