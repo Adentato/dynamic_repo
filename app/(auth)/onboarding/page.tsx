@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
-import { createOrganization } from '@/lib/supabase/organizations'
+import { createOrganizationAction } from '@/app/actions/auth'
 import {
   createWorkspaceSchema,
   generateSlug,
@@ -50,14 +50,14 @@ export default function OnboardingPage() {
     setError(null)
 
     try {
-      const { organization, error: createError } = await createOrganization(
+      const { organization, error: createError } = await createOrganizationAction(
         values.name,
         values.slug,
         values.description
       )
 
       if (createError) {
-        setError(createError.message)
+        setError(createError)
         return
       }
 

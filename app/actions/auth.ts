@@ -96,3 +96,53 @@ export async function getCurrentUserAction() {
 
   return { user, profile, organization }
 }
+
+export async function createOrganizationAction(
+  name: string,
+  slug: string,
+  description?: string
+) {
+  const supabase = await createClient()
+
+  // Get current user
+  const { data: authData, error: authError } = await supabase.auth.getUser()
+
+  if (authError || !authData.user) {
+    return { organization: null, error: 'Not authenticated' }
+  }
+
+  const userId = authData.user.id
+
+  // Create organization
+  const { data: orgData, error: orgError } = await supabase
+    .from('organizations')
+    .insert({
+      name,
+      slug,
+      description: description || null,
+      created_by: userId,
+    })
+    .select()
+    .single()
+
+  if (orgError || !orgData) {
+    return { organization: null, error: orgError?.message || 'Error creating organization' }
+  }
+
+  const organization = orgData
+
+  // Create organization member (owner)
+  const { error: memberError } = await supabase
+    .from('organization_members')
+    .insert({
+      organization_id: organization.id,
+      user_id: userId,
+      role: 'owner',
+    })
+
+  if (memberError) {
+    return { organization: null, error: memberError.message }
+  }
+
+  return { organization, error: null }
+}
