@@ -119,52 +119,55 @@ export async function getCurrentUserAction() {
   return { user, profile, organization }
 }
 
-export async function createOrganizationAction(
-  name: string,
-  slug: string,
+export async function createOrganizationAction(formData: {
+  name: string
+  slug: string
   description?: string
-) {
+}) {
   const supabase = await createClient()
 
   // Get current user
-  const { data: authData, error: authError } = await supabase.auth.getUser()
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
 
-  if (authError || !authData.user) {
-    return { organization: null, error: 'Not authenticated' }
+  if (userError || !user) {
+    return { error: 'Non authentifié' }
   }
 
-  const userId = authData.user.id
-
   // Create organization
-  const { data: orgData, error: orgError } = await supabase
+  const { data: organization, error: orgError } = await supabase
     .from('organizations')
     .insert({
-      name,
-      slug,
-      description: description || null,
-      created_by: userId,
+      name: formData.name,
+      slug: formData.slug,
+      description: formData.description || null,
+      created_by: user.id,
     })
     .select()
     .single()
 
-  if (orgError || !orgData) {
-    return { organization: null, error: orgError?.message || 'Error creating organization' }
+  if (orgError) {
+    return { error: orgError.message }
   }
 
-  const organization = orgData
+  if (!organization) {
+    return { error: 'Erreur lors de la création de l\'organisation' }
+  }
 
   // Create organization member (owner)
   const { error: memberError } = await supabase
     .from('organization_members')
     .insert({
       organization_id: organization.id,
-      user_id: userId,
+      user_id: user.id,
       role: 'owner',
     })
 
   if (memberError) {
-    return { organization: null, error: memberError.message }
+    // Rollback: delete the organization if member creation fails
+    await supabase.from('organizations').delete().eq('id', organization.id)
+    return { error: 'Erreur lors de l\'ajout comme membre: ' + memberError.message }
   }
 
-  return { organization, error: null }
+  revalidatePath('/', 'layout')
+  redirect('/dashboard')
 }

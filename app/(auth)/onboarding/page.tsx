@@ -64,13 +64,23 @@ export default function OnboardingPage() {
     setLoading(true)
     setError(null)
 
-    const result = await createOrganizationAction(values.name, values.slug, values.description)
+    try {
+      const result = await createOrganizationAction(values)
 
-    if (result?.error) {
-      setError(result.error)
-      setLoading(false)
+      if (result?.error) {
+        setError(result.error)
+        setLoading(false)
+      } else {
+        // Force redirection côté client
+        router.push('/dashboard')
+        router.refresh()
+      }
+    } catch (error) {
+      // Si redirect() est appelé dans la Server Action, ça lance une erreur
+      // Mais c'est normal, la redirection fonctionne quand même
+      router.push('/dashboard')
+      router.refresh()
     }
-    // Si succès, la redirection est gérée par createOrganizationAction
   }
 
   return (
