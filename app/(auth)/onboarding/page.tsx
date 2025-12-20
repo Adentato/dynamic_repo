@@ -1,11 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
-
 import { createOrganizationAction } from '@/app/actions/auth'
 import { Button } from '@/components/ui/button'
 import {
@@ -26,12 +25,9 @@ const formSchema = z.object({
   description: z.string().optional(),
 })
 
-type FormSchema = z.infer<typeof formSchema>
-
-function generateSlug(text: string): string {
-  return text
+function generateSlug(name: string): string {
+  return name
     .toLowerCase()
-    .trim()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
@@ -43,7 +39,7 @@ export default function OnboardingPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const form = useForm<FormSchema>({
+  const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: '',
@@ -52,26 +48,23 @@ export default function OnboardingPage() {
     },
   })
 
-  // Auto-generate slug from name
-  useEffect(() => {
-    const subscription = form.watch((value) => {
-      if (value.name && !form.formState.dirtyFields.slug) {
-        const slug = generateSlug(value.name)
-        form.setValue('slug', slug, { shouldValidate: false })
-      }
-    })
-    return () => subscription.unsubscribe()
-  }, [form])
+  // Génération du slug SANS useEffect
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const name = e.target.value
+    form.setValue('name', name)
+    
+    // Générer le slug seulement si l'user n'a pas modifié manuellement le slug
+    if (!form.formState.dirtyFields.slug) {
+      const slug = generateSlug(name)
+      form.setValue('slug', slug, { shouldValidate: false, shouldDirty: false })
+    }
+  }
 
-  async function onSubmit(values: FormSchema) {
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true)
     setError(null)
 
-    const result = await createOrganizationAction(
-      values.name,
-      values.slug,
-      values.description
-    )
+    const result = await createOrganizationAction(values.name, values.slug, values.description)
 
     if (result?.error) {
       setError(result.error)
@@ -81,7 +74,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="container max-w-lg mx-auto py-16 px-4">
+    <div className="container max-w-lg mx-auto py-16">
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold mb-2">Créez votre workspace</h1>
         <p className="text-gray-600">
@@ -104,7 +97,11 @@ export default function OnboardingPage() {
               <FormItem>
                 <FormLabel>Nom du workspace</FormLabel>
                 <FormControl>
-                  <Input placeholder="Équipe UX Acme Corp" {...field} />
+                  <Input 
+                    placeholder="Équipe UX Acme Corp" 
+                    {...field}
+                    onChange={handleNameChange}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -119,12 +116,8 @@ export default function OnboardingPage() {
                 <FormLabel>URL du workspace</FormLabel>
                 <FormControl>
                   <div className="flex items-center gap-2">
-                    <span className="text-gray-500">/workspace/</span>
-                    <Input
-                      placeholder="equipe-ux-acme-corp"
-                      {...field}
-                      readOnly={!form.formState.dirtyFields.slug}
-                    />
+                    <span className="text-gray-500 text-sm">/workspace/</span>
+                    <Input placeholder="equipe-ux-acme-corp" {...field} />
                   </div>
                 </FormControl>
                 <FormDescription>
