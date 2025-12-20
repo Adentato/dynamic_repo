@@ -11,36 +11,40 @@ export async function signUpAction(formData: {
 }) {
   const supabase = await createClient()
 
-  const { data, error } = await supabase.auth.signUp({
+  // Signup simple sans redirections complexes
+  const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
     email: formData.email,
     password: formData.password,
     options: {
       data: {
         full_name: formData.fullName,
       },
-      emailRedirectTo: process.env.NEXT_PUBLIC_APP_URL 
-        ? `${process.env.NEXT_PUBLIC_APP_URL}/onboarding`
-        : undefined,
     },
   })
 
-  if (error) {
-    return { error: error.message }
+  if (signUpError) {
+    return { error: signUpError.message, success: false }
   }
 
-  if (!data.user) {
-    return { error: 'Erreur lors de la création du compte' }
+  if (!signUpData.user) {
+    return { error: 'Erreur lors de la création du compte', success: false }
   }
 
-  // Auto-login après signup
+  // Attendre un peu que Supabase synchronise
+  await new Promise(resolve => setTimeout(resolve, 1000))
+
+  // Connexion automatique avec les mêmes credentials
   const { error: signInError } = await supabase.auth.signInWithPassword({
     email: formData.email,
     password: formData.password,
   })
 
   if (signInError) {
-    // Le compte est créé mais la connexion a échoué
-    return { error: 'Compte créé mais erreur de connexion. Essayez de vous connecter.' }
+    console.error('Auto-login error:', signInError)
+    return { 
+      error: 'Compte créé ! Connectez-vous maintenant avec vos identifiants.', 
+      success: true 
+    }
   }
 
   revalidatePath('/', 'layout')

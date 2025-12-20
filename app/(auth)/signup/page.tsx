@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
@@ -19,6 +20,7 @@ import {
 import { Input } from '@/components/ui/input'
 
 export default function SignupPage() {
+  const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -44,9 +46,15 @@ export default function SignupPage() {
       })
 
       if (result?.error) {
-        setError(result.error)
-        setIsLoading(false)
+        if (result.success) {
+          // Compte créé mais pas auto-login, rediriger vers login
+          router.push('/login?message=Compte créé avec succès ! Connectez-vous.')
+        } else {
+          setError(result.error)
+          setIsLoading(false)
+        }
       }
+      // Si pas de result, la redirection vers /onboarding est gérée par signUpAction
     } catch (err) {
       setError('Une erreur est survenue. Veuillez réessayer.')
       setIsLoading(false)
