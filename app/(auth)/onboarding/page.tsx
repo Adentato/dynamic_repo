@@ -64,20 +64,32 @@ export default function OnboardingPage() {
     setLoading(true)
     setError(null)
 
+    console.log('[onboarding] Submitting form with values:', values)
+
     try {
       const result = await createOrganizationAction(values)
 
+      console.log('[onboarding] Action result:', result)
+
       if (result?.error) {
+        console.log('[onboarding] Error returned:', result.error)
         setError(result.error)
         setLoading(false)
       } else {
-        // Force redirection côté client
+        // Si aucun résultat d'erreur, la redirection a fonctionné
+        console.log('[onboarding] No error, should be redirecting via redirect()')
+        // On attend quand même un peu pour que la redirection serveur se fasse
+        await new Promise(resolve => setTimeout(resolve, 500))
+        // Force redirection côté client au cas où
         router.push('/dashboard')
         router.refresh()
       }
-    } catch (error) {
+    } catch (error: any) {
       // Si redirect() est appelé dans la Server Action, ça lance une erreur
       // Mais c'est normal, la redirection fonctionne quand même
+      console.log('[onboarding] Caught error:', error?.message || error)
+      // Attendre que la redirection serveur se fasse, puis redirection client de secours
+      await new Promise(resolve => setTimeout(resolve, 500))
       router.push('/dashboard')
       router.refresh()
     }

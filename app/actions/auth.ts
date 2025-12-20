@@ -129,6 +129,8 @@ export async function createOrganizationAction(formData: {
   // Get current user
   const { data: { user }, error: userError } = await supabase.auth.getUser()
 
+  console.log('[createOrganizationAction] User:', user?.id, 'Error:', userError)
+
   if (userError || !user) {
     return { error: 'Non authentifié' }
   }
@@ -144,6 +146,8 @@ export async function createOrganizationAction(formData: {
     })
     .select()
     .single()
+
+  console.log('[createOrganizationAction] Organization created:', organization?.id, 'Error:', orgError)
 
   if (orgError) {
     return { error: orgError.message }
@@ -162,12 +166,16 @@ export async function createOrganizationAction(formData: {
       role: 'owner',
     })
 
+  console.log('[createOrganizationAction] Member created for org:', organization.id, 'user:', user.id, 'Error:', memberError)
+
   if (memberError) {
     // Rollback: delete the organization if member creation fails
     await supabase.from('organizations').delete().eq('id', organization.id)
+    console.log('[createOrganizationAction] Rolled back organization due to member error')
     return { error: 'Erreur lors de l\'ajout comme membre: ' + memberError.message }
   }
 
+  console.log('[createOrganizationAction] Success, revalidating and redirecting to /dashboard')
   revalidatePath('/', 'layout')
   redirect('/dashboard')
 }

@@ -66,15 +66,20 @@ export async function proxy(request: NextRequest) {
     }
 
     // Vérifier si l'user a une organisation
-    const { data: membership } = await supabase
+    const { data: membership, error: membershipError } = await supabase
       .from('organization_members')
       .select('organization_id')
       .eq('user_id', user.id)
       .single()
 
+    console.log('[proxy] Checking membership for user:', user.id, 'pathname:', pathname)
+    console.log('[proxy] Membership result:', membership)
+    console.log('[proxy] Membership error:', membershipError)
+
     if (!membership) {
       const url = request.nextUrl.clone()
       url.pathname = '/onboarding'
+      console.log('[proxy] No membership found, redirecting to onboarding')
       return NextResponse.redirect(url)
     }
 
