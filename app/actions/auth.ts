@@ -18,11 +18,29 @@ export async function signUpAction(formData: {
       data: {
         full_name: formData.fullName,
       },
+      emailRedirectTo: process.env.NEXT_PUBLIC_APP_URL 
+        ? `${process.env.NEXT_PUBLIC_APP_URL}/onboarding`
+        : undefined,
     },
   })
 
   if (error) {
     return { error: error.message }
+  }
+
+  if (!data.user) {
+    return { error: 'Erreur lors de la création du compte' }
+  }
+
+  // Auto-login après signup
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email: formData.email,
+    password: formData.password,
+  })
+
+  if (signInError) {
+    // Le compte est créé mais la connexion a échoué
+    return { error: 'Compte créé mais erreur de connexion. Essayez de vous connecter.' }
   }
 
   revalidatePath('/', 'layout')

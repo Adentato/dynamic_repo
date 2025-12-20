@@ -1,70 +1,91 @@
-import { type NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
+import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  const requestUrl = new URL(request.url)
-  const pathname = requestUrl.pathname
+  let supabaseResponse = NextResponse.next({
+    request,
+  })
 
-  // Public routes
-  const publicRoutes = ['/', '/login', '/signup', '/onboarding']
-  const isPublicRoute = publicRoutes.includes(pathname)
-
-  // App routes that require authentication
-  const isAppRoute = pathname.startsWith('/app') || pathname.startsWith('/dashboard')
-
-  if (isAppRoute) {
-    // Create Supabase client
-    let response = NextResponse.next({
-      request,
-    })
-
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll()
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              response.cookies.set(name, value, options)
-            })
-          },
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
         },
-      }
-    )
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            request.cookies.set(name, value)
+          )
+          supabaseResponse = NextResponse.next({
+            request,
+          })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          )
+        },
+      },
+    }
+  )
 
-    // Check authentication
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-    // If not authenticated, redirect to login
+  const pathname = request.nextUrl.pathname
+
+  // Routes publiques - pas besoin d'être connecté
+  if (
+    pathname === '/' ||
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/signup')
+  ) {
+    return supabaseResponse
+  }
+
+  // /onboarding : doit être authentifié
+  if (pathname.startsWith('/onboarding')) {
     if (!user) {
-      return NextResponse.redirect(new URL('/login', request.url))
+      const url = request.nextUrl.clone()
+      url.pathname = '/login'
+      return NextResponse.redirect(url)
+    }
+    return supabaseResponse
+  }
+
+  // /dashboard et /app/* : doit être authentifié + avoir une organisation
+  if (
+    pathname.startsWith('/dashboard') ||
+    pathname.startsWith('/app')
+  ) {
+    if (!user) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/login'
+      return NextResponse.redirect(url)
     }
 
-    // Check if user has an organization
-    const { data: memberData } = await supabase
+    // Vérifier si l'user a une organisation
+    const { data: membership } = await supabase
       .from('organization_members')
       .select('organization_id')
       .eq('user_id', user.id)
       .single()
 
-    if (!memberData) {
-      return NextResponse.redirect(new URL('/onboarding', request.url))
+    if (!membership) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/onboarding'
+      return NextResponse.redirect(url)
     }
 
-    return response
+    return supabaseResponse
   }
 
-  // Allow public routes
-  return NextResponse.next({
-    request,
-  })
+  return supabaseResponse
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
 }
