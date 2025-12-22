@@ -1,37 +1,50 @@
-'use client'
-
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
-
-import { signOutAction, getCurrentUserAction } from '@/app/actions/auth'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { UserMenu } from '@/components/UserMenu'
 
-export function Navbar() {
-  const [currentUser, setCurrentUser] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(true)
+/**
+ * Server Component Navbar
+ *
+ * Optimizations applied:
+ * - Converted from client component to server component
+ * - Receives user data as prop (no duplicate fetching)
+ * - No loading state flicker (data ready on initial render)
+ * - Reduced JavaScript bundle size (less client-side code)
+ * - Extracted interactive menu to separate UserMenu client component
+ *
+ * Benefits:
+ * - Faster initial page load
+ * - Better SEO (fully rendered on server)
+ * - No race conditions or useEffect waterfalls
+ * - Single data fetch per page (passed from parent)
+ * - No infinite render loops
+ *
+ * Props:
+ * @param currentUser - Optional user object fetched by parent component
+ */
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      const user = await getCurrentUserAction()
-      setCurrentUser(user)
-      setIsLoading(false)
+interface NavbarProps {
+  currentUser?: {
+    profile: {
+      full_name: string
+      email: string
     }
-    fetchUser()
-  }, [])
+    organization?: {
+      name: string
+      slug: string
+    } | null
+  } | null
+}
+
+export function Navbar({ currentUser = null }: NavbarProps) {
+  // User data comes from props - no server-side fetching here
+  // This prevents duplicate database calls and infinite loops
 
   return (
     <nav className="border-b border-zinc-200 bg-white">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
+          {/* Logo/Brand - static, no interaction needed */}
           <Link href="/" className="flex-shrink-0">
             <h1 className="text-2xl font-bold text-zinc-900">
               UX Repository
@@ -39,49 +52,21 @@ export function Navbar() {
           </Link>
 
           <div className="flex items-center gap-4">
-            {!isLoading && currentUser && currentUser.profile ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-2 rounded-full p-1 hover:bg-zinc-100">
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback className="text-xs">
-                        {currentUser.profile.full_name
-                          .split(' ')
-                          .map((n: string) => n[0])
-                          .join('')
-                          .toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>
-                    {currentUser.profile.full_name}
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/profile">Mon profil</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/settings">Paramètres</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => signOutAction()}>
-                    Se déconnecter
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+            {/* Conditional rendering based on auth state */}
+            {currentUser && currentUser.profile ? (
+              // User is authenticated - show interactive menu
+              // UserMenu is a client component for dropdown interactions
+              <UserMenu user={currentUser} />
             ) : (
-              !isLoading && (
-                <>
-                  <Link href="/login">
-                    <Button variant="ghost">Connexion</Button>
-                  </Link>
-                  <Link href="/signup">
-                    <Button>S'inscrire</Button>
-                  </Link>
-                </>
-              )
+              // User is not authenticated - show static login/signup buttons
+              <>
+                <Link href="/login">
+                  <Button variant="ghost">Connexion</Button>
+                </Link>
+                <Link href="/signup">
+                  <Button>S'inscrire</Button>
+                </Link>
+              </>
             )}
           </div>
         </div>

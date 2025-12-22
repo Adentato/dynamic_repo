@@ -9,7 +9,7 @@ export default async function Home() {
 
   return (
     <>
-      <Navbar />
+      <Navbar currentUser={currentUser} />
       <main className="min-h-screen bg-gradient-to-b from-zinc-50 to-zinc-100">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20">
           <div className="text-center">

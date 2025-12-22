@@ -23,6 +23,14 @@ export async function signUpAction(formData: {
   })
 
   if (signUpError) {
+    // Check if user already exists
+    if (signUpError.message.includes('already registered') || 
+        signUpError.message.includes('User already exists')) {
+      return { 
+        error: 'Cet email est déjà utilisé. Veuillez vous connecter à votre compte ou utiliser un autre email.', 
+        success: false 
+      }
+    }
     return { error: signUpError.message, success: false }
   }
 
