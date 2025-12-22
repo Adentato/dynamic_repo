@@ -1,8 +1,31 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { getCurrentUser } from '@/lib/supabase/auth'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
+
+/**
+ * Poll until a condition is met or timeout is reached
+ * @param condition - Function that returns true when condition is met
+ * @param maxAttempts - Maximum number of attempts (default: 10)
+ * @param delayMs - Delay between attempts in milliseconds (default: 500)
+ */
+async function pollUntil(
+  condition: () => Promise<boolean>,
+  maxAttempts: number = 10,
+  delayMs: number = 500
+): Promise<boolean> {
+  for (let i = 0; i < maxAttempts; i++) {
+    if (await condition()) {
+      return true
+    }
+    if (i < maxAttempts - 1) {
+      await new Promise(resolve => setTimeout(resolve, delayMs))
+    }
+  }
+  return false
+}
 
 export async function signUpAction(formData: {
   email: string
@@ -38,8 +61,24 @@ export async function signUpAction(formData: {
     return { error: 'Erreur lors de la création du compte', success: false }
   }
 
-  // Attendre un peu que Supabase synchronise
-  await new Promise(resolve => setTimeout(resolve, 1000))
+  // Poll until profile is created by Supabase auth trigger
+  const userId = signUpData.user.id
+  const profileCreated = await pollUntil(
+    async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', userId)
+        .maybeSingle()
+      return !!data
+    },
+    15,
+    300
+  )
+
+  if (!profileCreated) {
+    console.warn('Profile not created after polling, continuing anyway')
+  }
 
   // Connexion automatique avec les mêmes credentials
   const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -85,47 +124,6 @@ export async function signOutAction() {
   redirect('/')
 }
 
-export async function getCurrentUserAction() {
-  const supabase = await createClient()
-
-  const { data: authData } = await supabase.auth.getUser()
-
-  if (!authData.user) {
-    return null
-  }
-
-  const user = authData.user
-
-  // Fetch profile
-  const { data: profileData } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single()
-
-  if (!profileData) {
-    return null
-  }
-
-  const profile = profileData
-
-  // Fetch organization
-  const { data: memberData } = await supabase
-    .from('organization_members')
-    .select(
-      'organization_id, organizations(id, name, slug, description, created_at, updated_at, created_by)'
-    )
-    .eq('user_id', user.id)
-    .single()
-
-  let organization = null
-
-  if (memberData && memberData.organizations) {
-    organization = memberData.organizations as any
-  }
-
-  return { user, profile, organization }
-}
 
 export async function createOrganizationAction(formData: {
   name: string

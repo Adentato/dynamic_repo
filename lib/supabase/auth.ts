@@ -1,38 +1,10 @@
 import { createClient } from './server'
-import { Profile, Organization, OrganizationMember } from '@/types/database'
+import { Profile, Organization } from '@/types/database'
 
-export async function signUp(email: string, password: string, fullName: string) {
-  const supabase = await createClient()
-
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        full_name: fullName,
-      },
-    },
-  })
-
-  return { user: data.user, error }
-}
-
-export async function signIn(email: string, password: string) {
-  const supabase = await createClient()
-
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  })
-
-  return { user: data.user, error }
-}
-
-export async function signOut() {
-  const supabase = await createClient()
-  return await supabase.auth.signOut()
-}
-
+/**
+ * Get the current authenticated user with their profile and organization
+ * Returns null if user is not authenticated or profile/organization cannot be loaded
+ */
 export async function getCurrentUser() {
   const supabase = await createClient()
 
