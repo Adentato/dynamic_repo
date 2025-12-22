@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
@@ -35,7 +34,6 @@ function generateSlug(name: string): string {
 }
 
 export default function OnboardingPage() {
-  const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -64,34 +62,18 @@ export default function OnboardingPage() {
     setLoading(true)
     setError(null)
 
-    console.log('[onboarding] Submitting form with values:', values)
-
     try {
       const result = await createOrganizationAction(values)
-
-      console.log('[onboarding] Action result:', result)
-
+      
       if (result?.error) {
-        console.log('[onboarding] Error returned:', result.error)
         setError(result.error)
         setLoading(false)
-      } else {
-        // Si aucun résultat d'erreur, la redirection a fonctionné
-        console.log('[onboarding] No error, should be redirecting via redirect()')
-        // On attend quand même un peu pour que la redirection serveur se fasse
-        await new Promise(resolve => setTimeout(resolve, 500))
-        // Force redirection côté client au cas où
-        router.push('/dashboard')
-        router.refresh()
       }
+      // Si pas d'erreur, redirect() dans createOrganizationAction gère tout
+      // Pas besoin de router.push ici
     } catch (error: any) {
-      // Si redirect() est appelé dans la Server Action, ça lance une erreur
-      // Mais c'est normal, la redirection fonctionne quand même
-      console.log('[onboarding] Caught error:', error?.message || error)
-      // Attendre que la redirection serveur se fasse, puis redirection client de secours
-      await new Promise(resolve => setTimeout(resolve, 500))
-      router.push('/dashboard')
-      router.refresh()
+      // Si on arrive ici, c'est que redirect() a été appelé
+      // C'est normal, ne rien faire - la redirection fonctionne
     }
   }
 
