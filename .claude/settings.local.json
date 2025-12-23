@@ -23,7 +23,12 @@
       "Bash(ls:*)",
       "Bash(rm:*)",
       "Bash(powershell -Command:*)",
-      "Bash(wmic process where name=\"node.exe\" delete)"
+      "Bash(wmic process where name=\"node.exe\" delete)",
+      "Bash(supabase link:*)",
+      "Bash(npx supabase:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(git add:*)"
     ]
   }
 }

@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Navbar } from '@/components/Navbar'
-import { getWorkspaceTablesAction } from '@/app/actions/entities/workspace'
+import { getWorkspaceHierarchyAction } from '@/app/actions/entities/projects'
 import { DashboardClient } from '@/components/dashboard-client'
 
 export default async function DashboardPage() {
@@ -51,11 +51,14 @@ export default async function DashboardPage() {
 
     const organization = membership.organization
 
-    // ===== FETCH WORKSPACE TABLES
-    const tablesResult = await getWorkspaceTablesAction(organization.id)
-    console.log('Dashboard - Tables Result:', tablesResult)
-    const tables = tablesResult.success && tablesResult.data ? tablesResult.data : []
-    console.log('Dashboard - Tables Count:', tables.length)
+    // ===== FETCH WORKSPACE HIERARCHY (Projects + Tables)
+    const hierarchyResult = await getWorkspaceHierarchyAction(organization.id)
+    console.log('Dashboard - Hierarchy Result:', hierarchyResult)
+    const hierarchy = hierarchyResult.success && hierarchyResult.data 
+      ? hierarchyResult.data 
+      : { projects: [], tablesWithoutProject: [] }
+    console.log('Dashboard - Projects Count:', hierarchy.projects.length)
+    console.log('Dashboard - Orphan Tables Count:', hierarchy.tablesWithoutProject.length)
 
     // Prepare currentUser object for Navbar
     const currentUser = profile ? {
@@ -84,7 +87,7 @@ export default async function DashboardPage() {
             workspaceId={organization.id}
             organizationName={organization.name}
             userName={profile?.full_name || 'Utilisateur'}
-            tables={tables}
+            hierarchy={hierarchy}
           />
         </main>
       </>

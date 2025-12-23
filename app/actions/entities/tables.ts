@@ -13,9 +13,9 @@ import type {
 } from '@/types/entities'
 
 /**
- * Create a new entity table in a workspace
+ * Create a new entity table in a workspace or project
  *
- * @param input - CreateTableInput with workspace_id, name, description
+ * @param input - CreateTableInput with workspace_id, name, description, and optional project_id
  * @returns { success: true, data: table } or { success: false, error: message }
  */
 export async function createEntityTableAction(input: CreateTableInput) {
@@ -50,11 +50,29 @@ export async function createEntityTableAction(input: CreateTableInput) {
       }
     }
 
-    // ===== 4. INSERT TABLE INTO DATABASE
+    // ===== 4. IF PROJECT_ID PROVIDED, VERIFY IT BELONGS TO WORKSPACE
+    if (validatedInput.project_id) {
+      const { data: project, error: projectError } = await supabase
+        .from('projects')
+        .select('workspace_id')
+        .eq('id', validatedInput.project_id)
+        .eq('workspace_id', validatedInput.workspace_id)
+        .maybeSingle()
+
+      if (projectError || !project) {
+        return {
+          success: false,
+          error: 'Le projet spécifié n\'existe pas ou n\'appartient pas à ce workspace.',
+        }
+      }
+    }
+
+    // ===== 5. INSERT TABLE INTO DATABASE
     const { data: newTable, error: insertError } = await supabase
       .from('entity_tables')
       .insert({
         workspace_id: validatedInput.workspace_id,
+        project_id: validatedInput.project_id || null,
         name: validatedInput.name,
         description: validatedInput.description,
       })
@@ -69,11 +87,14 @@ export async function createEntityTableAction(input: CreateTableInput) {
       }
     }
 
-    // ===== 5. REVALIDATE CACHE
+    // ===== 6. REVALIDATE CACHE
     revalidatePath('/dashboard')
     revalidatePath(`/workspace/${validatedInput.workspace_id}`)
+    if (validatedInput.project_id) {
+      revalidatePath(`/workspace/${validatedInput.workspace_id}/project/${validatedInput.project_id}`)
+    }
 
-    // ===== 6. RETURN SUCCESS
+    // ===== 7. RETURN SUCCESS
     return {
       success: true,
       data: newTable as EntityTable,
@@ -155,6 +176,7 @@ export async function getEntityTableDetailsAction(tableId: string) {
     const result: EntityTableWithFields = {
       id: table.id,
       workspace_id: table.workspace_id,
+      project_id: table.project_id,
       name: table.name,
       description: table.description,
       created_at: table.created_at,

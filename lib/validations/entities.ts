@@ -22,12 +22,15 @@ export type FieldType = z.infer<typeof fieldTypeSchema>
 /**
  * Create a new entity table
  * Requires: workspace_id, name
- * Optional: description
+ * Optional: description, project_id (Phase 3)
  */
 export const createTableSchema = z.object({
   workspace_id: z.string().uuid({
     message: 'workspace_id doit être un UUID valide.',
   }),
+  project_id: z.string().uuid({
+    message: 'project_id doit être un UUID valide.',
+  }).nullable().optional(),
   name: z.string().min(1, {
     message: 'Le nom de la table est requis.',
   }).max(255, {

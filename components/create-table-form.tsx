@@ -20,6 +20,7 @@ import { Textarea } from '@/components/ui/textarea'
 
 interface CreateTableFormProps {
   workspaceId: string
+  projectId?: string
   onSuccess?: (tableId: string) => void
   onOpenChange?: (open: boolean) => void
 }
@@ -32,9 +33,11 @@ interface CreateTableFormProps {
  * - Submits to createEntityTableAction Server Action
  * - Handles loading and error states
  * - Calls onSuccess callback when table is created
+ * - Optionally associates table with a project (Phase 3)
  */
 export function CreateTableForm({
   workspaceId,
+  projectId,
   onSuccess,
   onOpenChange,
 }: CreateTableFormProps) {
@@ -45,6 +48,7 @@ export function CreateTableForm({
     resolver: zodResolver(createTableSchema),
     defaultValues: {
       workspace_id: workspaceId,
+      project_id: projectId || null,
       name: '',
       description: '',
     },

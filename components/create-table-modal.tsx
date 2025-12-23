@@ -8,6 +8,7 @@ import { CreateTableForm } from '@/components/create-table-form'
 
 interface CreateTableModalProps {
   workspaceId: string
+  projectId?: string
   open?: boolean
   onOpenChange?: (open: boolean) => void
   children?: React.ReactNode
@@ -21,9 +22,11 @@ interface CreateTableModalProps {
  * - Handles navigation to new table after creation
  * - Accepts open/onOpenChange props for controlled state
  * - Can be used with a trigger button (via children) or controlled externally
+ * - Optionally associates table with a project (Phase 3)
  */
 export function CreateTableModal({
   workspaceId,
+  projectId,
   open: controlledOpen,
   onOpenChange: controlledOnOpenChange,
   children,
@@ -69,6 +72,7 @@ export function CreateTableModal({
 
           <CreateTableForm
             workspaceId={workspaceId}
+            projectId={projectId}
             onSuccess={handleSuccess}
             onOpenChange={setOpen}
           />

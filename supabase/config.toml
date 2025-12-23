@@ -1,0 +1,23 @@
+# Supabase CLI Configuration
+# Project: grist-like-app
+
+[api]
+enabled = true
+port = 54321
+
+[db]
+port = 5432
+major_version = 15
+
+[realtime]
+enabled = true
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+enabled = true
+port = 54324
+smtp_port = 54325
+pop3_port = 54326
