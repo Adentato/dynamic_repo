@@ -527,24 +527,7 @@ components/UserMenu.tsx (client component)
 
 ---
 
-## 📝 Prochaines phases
 
-### Phase 2: Tables dynamiques
-- Créer tables user_tables, table_columns
-- UI pour créer/éditer tables
-- Affichage données dynamiques
-
-### Phase 3: Administration avancée
-- Intégration MCP Supabase
-- Gestion permissions granulaires
-- Webhooks Supabase
-
-### Phase 4: Performance & Monitoring
-- Caching strategy (Redis?)
-- Analytics
-- Error tracking (Sentry?)
-
----
 
 ## 📞 Support
 

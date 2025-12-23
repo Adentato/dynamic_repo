@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS public.entity_fields (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   table_id uuid NOT NULL,
   name text NOT NULL,
-  type text NOT NULL CHECK (type IN ('text', 'number', 'select', 'date', 'boolean', 'email', 'url', 'richtext', 'json')),
+  type text NOT NULL CHECK (type IN ('text', 'number', 'select', 'date', 'boolean', 'email', 'url', 'richtext', 'json', 'relation')),
   options jsonb DEFAULT '{}'::jsonb,
   order_index integer NOT NULL DEFAULT 0,
   created_at timestamptz DEFAULT now(),
