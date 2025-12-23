@@ -140,7 +140,10 @@ export default async function TablePage({ params }: TablePageProps) {
                     <span className="line-through">Phase 2.2: Ajouter TanStack Table (structure)</span>{' '}
                     ✅
                   </li>
-                  <li>Phase 2.3: Mapper entity_fields → colonnes TanStack</li>
+                  <li>
+                    <span className="line-through">Phase 2.3: Mapper entity_fields → colonnes TanStack</span>{' '}
+                    ✅
+                  </li>
                   <li>Phase 2.4: Ajouter les interactions (tri, filtre)</li>
                 </ol>
               </div>

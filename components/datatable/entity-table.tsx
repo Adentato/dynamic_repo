@@ -4,9 +4,9 @@ import {
   useReactTable,
   getCoreRowModel,
   flexRender,
-  ColumnDef,
 } from '@tanstack/react-table'
 import type { EntityTableWithFields, EntityRecord } from '@/types/entities'
+import { useEntityColumns } from './columns-builder'
 
 interface EntityTableProps {
   table: EntityTableWithFields
@@ -14,7 +14,7 @@ interface EntityTableProps {
 }
 
 /**
- * Phase 2.2: EntityTable Component
+ * Phase 2.3: EntityTable Component (Updated)
  *
  * Client Component that renders a dynamic table using TanStack Table
  *
@@ -23,18 +23,19 @@ interface EntityTableProps {
  * - initialRecords: Array of records (rows data)
  *
  * Features:
- * - Core rendering with useReactTable
- * - Columns definition (empty for now - Phase 2.3 will add dynamic mapping)
+ * - Dynamic column generation from entity_fields (via useEntityColumns)
+ * - Smart cell rendering (select fields as badges, others as text)
  * - Tailwind styling (borders, header, responsive)
+ * - Notion-style color palette for select badges
  *
- * Phase 2.3 will replace the empty columns array with dynamic column definitions
- * based on table.fields (entity_fields)
+ * The columns are built by useEntityColumns hook which maps each
+ * EntityField to a TanStack ColumnDef with proper accessors and renderers.
  */
 export function EntityTable({ table, initialRecords }: EntityTableProps) {
-  // ===== 1. DEFINE COLUMNS
-  // For Phase 2.2, we use an empty array.
-  // Phase 2.3 will dynamically generate columns from table.fields
-  const columns: ColumnDef<EntityRecord>[] = []
+  // ===== 1. GENERATE COLUMNS DYNAMICALLY
+  // useEntityColumns transforms entity_fields into TanStack columns
+  // with smart rendering for different field types
+  const columns = useEntityColumns(table.fields)
 
   // ===== 2. INITIALIZE TABLE
   const tableInstance = useReactTable({
@@ -99,14 +100,14 @@ export function EntityTable({ table, initialRecords }: EntityTableProps) {
         </table>
       </div>
 
-      {/* Debug Info (temporary - remove in Phase 2.3) */}
+      {/* Debug Info */}
       <div className="border-t border-gray-200 bg-gray-50 px-6 py-3">
         <p className="text-xs text-gray-500">
           📊 <strong>{initialRecords.length}</strong> lignes |
-          <strong> {table.fields.length}</strong> colonnes (vides pour l'instant)
+          <strong> {table.fields.length}</strong> colonnes dynamiques
         </p>
         <p className="mt-1 text-xs text-gray-400">
-          💡 Phase 2.3 mappera entity_fields → colonnes TanStack dynamiquement
+          ✅ Phase 2.3: Colonnes générées dynamiquement (select fields = badges colorés)
         </p>
       </div>
     </div>
