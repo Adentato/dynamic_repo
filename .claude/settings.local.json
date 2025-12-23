@@ -5,7 +5,10 @@
       "Bash(timeout:*)",
       "Bash(taskkill:*)",
       "Bash(if exist \".next\\\\dev\\\\lock\" del \".next\\\\dev\\\\lock\")",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(git checkout:*)",
+      "Bash(npm install:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

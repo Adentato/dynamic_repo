@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { getEntityTableDetailsAction } from '@/app/actions/entities/tables'
 import { getEntityRecordsAction } from '@/app/actions/entities/records'
 import { Navbar } from '@/components/Navbar'
+import { EntityTable } from '@/components/datatable/entity-table'
 import { getCurrentUser } from '@/lib/supabase/auth'
 
 interface TablePageProps {
@@ -94,22 +95,12 @@ export default async function TablePage({ params }: TablePageProps) {
                 </pre>
               </div>
 
-              {/* Table Data */}
-              <div className="rounded-lg border border-gray-200 bg-white p-6">
+              {/* Table Data - Now with TanStack Table */}
+              <div>
                 <h2 className="mb-4 text-lg font-semibold text-gray-900">
                   📊 Données ({records.length} lignes)
                 </h2>
-                {records.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
-                    <p className="text-sm text-gray-500">
-                      Aucune donnée. Crée ta première ligne.
-                    </p>
-                  </div>
-                ) : (
-                  <pre className="overflow-auto rounded bg-gray-900 p-4 text-xs text-green-400">
-                    {JSON.stringify(records, null, 2)}
-                  </pre>
-                )}
+                <EntityTable table={table} initialRecords={records} />
               </div>
 
               {/* Debug Info */}
@@ -145,7 +136,10 @@ export default async function TablePage({ params }: TablePageProps) {
                   🚀 Prochaines étapes
                 </h3>
                 <ol className="list-inside list-decimal space-y-1 text-sm text-amber-800">
-                  <li>Phase 2.2: Ajouter TanStack Table (structure)</li>
+                  <li>
+                    <span className="line-through">Phase 2.2: Ajouter TanStack Table (structure)</span>{' '}
+                    ✅
+                  </li>
                   <li>Phase 2.3: Mapper entity_fields → colonnes TanStack</li>
                   <li>Phase 2.4: Ajouter les interactions (tri, filtre)</li>
                 </ol>
