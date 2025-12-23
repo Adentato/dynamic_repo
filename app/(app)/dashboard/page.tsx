@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { Button } from '@/components/ui/button'
 import { Navbar } from '@/components/Navbar'
+import { getWorkspaceTablesAction } from '@/app/actions/entities/workspace'
+import { DashboardClient } from '@/components/dashboard-client'
 
 export default async function DashboardPage() {
   try {
@@ -50,6 +51,12 @@ export default async function DashboardPage() {
 
     const organization = membership.organization
 
+    // ===== FETCH WORKSPACE TABLES
+    const tablesResult = await getWorkspaceTablesAction(organization.id)
+    console.log('Dashboard - Tables Result:', tablesResult)
+    const tables = tablesResult.success && tablesResult.data ? tablesResult.data : []
+    console.log('Dashboard - Tables Count:', tables.length)
+
     // Prepare currentUser object for Navbar
     const currentUser = profile ? {
       profile: {
@@ -73,24 +80,12 @@ export default async function DashboardPage() {
               </h1>
             </div>
           </div>
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
-            <div className="rounded-lg border border-zinc-200 bg-white p-12 text-center">
-              <h2 className="text-lg font-semibold text-zinc-900">
-                Vous n'avez pas encore de tables
-              </h2>
-              <p className="mt-2 text-zinc-600">
-                Commencez à organiser vos recherches UX en créant votre première table.
-              </p>
-              <div className="mt-6">
-                <Button disabled className="cursor-not-allowed" title="Disponible en Phase 2">
-                  Créer une table
-                </Button>
-                <p className="mt-2 text-sm text-zinc-500">
-                  Disponible en Phase 2
-                </p>
-              </div>
-            </div>
-          </div>
+          <DashboardClient
+            workspaceId={organization.id}
+            organizationName={organization.name}
+            userName={profile?.full_name || 'Utilisateur'}
+            tables={tables}
+          />
         </main>
       </>
     )

@@ -8,7 +8,22 @@
       "Bash(npx tsc:*)",
       "Bash(git checkout:*)",
       "Bash(npm install:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(powershell -Command \"Stop-Process -Id 26288 -Force\")",
+      "Bash(powershell -Command \"if \\(Test-Path ''.next/dev/lock''\\) { Remove-Item ''.next/dev/lock'' }\")",
+      "Bash(powershell -Command \"Get-Process | Where-Object {$_ProcessName -eq ''node''} | Stop-Process -Force\")",
+      "Bash(powershell -Command \"if \\(Test-Path ''.next/dev/lock''\\) { Remove-Item ''.next/dev/lock'' -Force }\")",
+      "Bash(lsof:*)",
+      "Bash(xargs kill:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(powershell Stop-Process:*)",
+      "Bash(powershell -Command \"rm -Path ''.next/dev/lock'' -Force -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 1000; npm run dev\")",
+      "Bash(powershell -Command \"rm -Recurse -Force ''.next'' -ErrorAction SilentlyContinue; npm run dev\")",
+      "Bash(ls:*)",
+      "Bash(rm:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(wmic process where name=\"node.exe\" delete)"
     ]
   }
 }
