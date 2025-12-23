@@ -6,10 +6,10 @@ import { EntityTable } from '@/components/datatable/entity-table'
 import { getCurrentUser } from '@/lib/supabase/auth'
 
 interface TablePageProps {
-  params: {
+  params: Promise<{
     workspaceId: string
     tableId: string
-  }
+  }>
 }
 
 /**
@@ -32,7 +32,7 @@ export default async function TablePage({ params }: TablePageProps) {
       notFound()
     }
 
-    const { workspaceId, tableId } = params
+    const { workspaceId, tableId } = await params
 
     // ===== 2. FETCH TABLE STRUCTURE (with fields)
     // This will validate workspace access via RLS policies and Server Action authorization checks
@@ -53,7 +53,7 @@ export default async function TablePage({ params }: TablePageProps) {
       // Don't 404 on records error - table exists but might have no data
     }
 
-    const records = recordsResult.success ? recordsResult.data : []
+    const records: typeof recordsResult.data = recordsResult.success && recordsResult.data ? recordsResult.data : []
 
     // ===== 4. RENDER PAGE
     return (
