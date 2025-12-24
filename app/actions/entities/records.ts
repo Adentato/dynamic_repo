@@ -6,85 +6,114 @@ import {
   upsertRecordSchema,
   type UpsertRecordInput,
 } from '@/lib/validations/entities'
-import type {
-  EntityRecord,
-} from '@/types/entities'
+import {
+  requireAuth,
+  requireTableInWorkspace,
+  NotFoundError,
+} from '@/lib/auth/workspace'
+import type { EntityRecord } from '@/types/entities'
 
 /**
- * Get all records for a specific table
+ * Phase 4 - Entity Records Server Actions
+ *
+ * Manages records (data) within entity tables.
+ * All actions use centralized auth helpers and pagination support.
+ */
+
+// ===== PAGINATION TYPES
+export interface PaginatedRecords {
+  records: EntityRecord[]
+  total: number
+  page: number
+  pageSize: number
+  hasNextPage: boolean
+  hasPreviousPage: boolean
+  totalPages: number
+}
+
+// ===== GET RECORDS WITH PAGINATION
+/**
+ * Fetch records from a table with pagination support
  *
  * @param tableId - UUID of the entity_table
- * @returns { success: true, data: EntityRecord[] } or { success: false, error: message }
+ * @param page - Page number (1-indexed), default: 1
+ * @param pageSize - Records per page, default: 50
+ * @returns Paginated records with metadata
+ *
+ * @example
+ * const result = await getEntityRecordsAction(tableId, 1, 50)
+ * // Returns: { total: 1000, hasNextPage: true, records: [...50 items] }
  */
-export async function getEntityRecordsAction(tableId: string) {
+export async function getEntityRecordsAction(
+  tableId: string,
+  page: number = 1,
+  pageSize: number = 50
+) {
   try {
-    // ===== 1. AUTHENTICATE USER
     const supabase = await createClient()
-    const { data: authData, error: authError } = await supabase.auth.getUser()
+    await requireAuth(supabase)
 
-    if (authError || !authData.user) {
-      return {
-        success: false,
-        error: 'Vous devez être connecté pour accéder aux enregistrements.',
-      }
-    }
+    // Validate pagination params
+    if (page < 1) page = 1
+    if (pageSize < 1 || pageSize > 500) pageSize = 50 // Max 500 per page
 
-    // ===== 2. VERIFY USER HAS ACCESS TO WORKSPACE (via table)
-    // Get the table first to check its workspace_id
-    const { data: table, error: tableError } = await supabase
+    // ===== VERIFY TABLE EXISTS AND USER HAS ACCESS
+    const { data: table } = await supabase
       .from('entity_tables')
       .select('workspace_id')
       .eq('id', tableId)
       .maybeSingle()
 
-    if (tableError || !table) {
-      return {
-        success: false,
-        error: 'Table non trouvée.',
-      }
+    if (!table) {
+      throw new NotFoundError('Table')
     }
 
-    // Check if user is member of the workspace
-    const { data: membership, error: membershipError } = await supabase
-      .from('organization_members')
-      .select('organization_id')
-      .eq('organization_id', table.workspace_id)
-      .eq('user_id', authData.user.id)
-      .maybeSingle()
+    // Verify workspace access (uses helper)
+    await requireTableInWorkspace(supabase, tableId, table.workspace_id)
 
-    if (membershipError || !membership) {
-      return {
-        success: false,
-        error: 'Vous n\'avez pas accès à ce workspace.',
-      }
+    // ===== FETCH TOTAL COUNT (for pagination metadata)
+    const { count: total, error: countError } = await supabase
+      .from('entity_records')
+      .select('*', { count: 'exact', head: true })
+      .eq('table_id', tableId)
+
+    if (countError || total === null) {
+      throw new Error('Failed to fetch record count.')
     }
 
-    // ===== 3. FETCH RECORDS SORTED BY created_at DESC
+    // ===== FETCH PAGINATED RECORDS
+    const offset = (page - 1) * pageSize
     const { data: records, error: recordsError } = await supabase
       .from('entity_records')
       .select('*')
       .eq('table_id', tableId)
       .order('created_at', { ascending: false })
+      .range(offset, offset + pageSize - 1)
 
     if (recordsError) {
-      console.error('Error fetching records:', recordsError)
-      return {
-        success: false,
-        error: 'Impossible de récupérer les enregistrements.',
-      }
+      throw new Error('Failed to fetch records.')
     }
 
-    // ===== 4. RETURN SUCCESS
+    // ===== CALCULATE PAGINATION METADATA
+    const totalPages = Math.ceil(total / pageSize)
+    const hasNextPage = page < totalPages
+    const hasPreviousPage = page > 1
+
     return {
       success: true,
-      data: records as EntityRecord[],
+      data: {
+        records: (records || []) as EntityRecord[],
+        total,
+        page,
+        pageSize,
+        hasNextPage,
+        hasPreviousPage,
+        totalPages,
+      } as PaginatedRecords,
     }
   } catch (error) {
-    console.error('Error in getEntityRecordsAction:', error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Une erreur inconnue est survenue.',
-    }
+    const message = error instanceof Error ? error.message : 'An unknown error occurred.'
+    return { success: false, error: message }
   }
 }
 
@@ -96,83 +125,45 @@ export async function getEntityRecordsAction(tableId: string) {
  */
 export async function createEntityRecordAction(input: UpsertRecordInput) {
   try {
-    // ===== 1. AUTHENTICATE USER
     const supabase = await createClient()
-    const { data: authData, error: authError } = await supabase.auth.getUser()
+    await requireAuth(supabase)
 
-    if (authError || !authData.user) {
-      return {
-        success: false,
-        error: 'Vous devez être connecté pour créer un enregistrement.',
-      }
-    }
-
-    // ===== 2. VALIDATE INPUT
+    // Validate input
     const validatedInput = upsertRecordSchema.parse(input)
 
-    // ===== 3. VERIFY USER HAS ACCESS TO WORKSPACE (via table)
-    // Get the table first to check its workspace_id
-    const { data: table, error: tableError } = await supabase
+    // ===== VERIFY TABLE EXISTS AND USER HAS ACCESS
+    const { data: table } = await supabase
       .from('entity_tables')
       .select('workspace_id')
       .eq('id', validatedInput.table_id)
       .maybeSingle()
 
-    if (tableError || !table) {
-      return {
-        success: false,
-        error: 'Table non trouvée.',
-      }
+    if (!table) {
+      throw new NotFoundError('Table')
     }
 
-    // Check if user is member of the workspace
-    const { data: membership, error: membershipError } = await supabase
-      .from('organization_members')
-      .select('organization_id')
-      .eq('organization_id', table.workspace_id)
-      .eq('user_id', authData.user.id)
-      .maybeSingle()
+    // Verify workspace access
+    await requireTableInWorkspace(supabase, validatedInput.table_id, table.workspace_id)
 
-    if (membershipError || !membership) {
-      return {
-        success: false,
-        error: 'Vous n\'avez pas accès à ce workspace.',
-      }
-    }
-
-    // ===== 4. INSERT RECORD INTO DATABASE
-    const { data: newRecord, error: insertError } = await supabase
+    // ===== CREATE RECORD
+    const { data: record, error: recordError } = await supabase
       .from('entity_records')
       .insert({
         table_id: validatedInput.table_id,
-        data: validatedInput.data || {},
+        data: validatedInput.data,
       })
-      .select('*')
+      .select()
       .single()
 
-    if (insertError || !newRecord) {
-      console.error('Error creating record:', insertError)
-      return {
-        success: false,
-        error: 'Impossible de créer l\'enregistrement. Veuillez réessayer.',
-      }
-    }
+    if (recordError) throw new Error('Failed to create record.')
 
-    // ===== 5. REVALIDATE CACHE
-    revalidatePath('/dashboard')
-    revalidatePath(`/table/${validatedInput.table_id}`)
+    // Revalidate table view
+    revalidatePath(`/workspace/*/table/${validatedInput.table_id}`)
 
-    // ===== 6. RETURN SUCCESS
-    return {
-      success: true,
-      data: newRecord as EntityRecord,
-    }
+    return { success: true, data: record as EntityRecord }
   } catch (error) {
-    console.error('Error in createEntityRecordAction:', error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Une erreur inconnue est survenue.',
-    }
+    const message = error instanceof Error ? error.message : 'An unknown error occurred.'
+    return { success: false, error: message }
   }
 }
 
@@ -180,192 +171,94 @@ export async function createEntityRecordAction(input: UpsertRecordInput) {
  * Update an existing record
  *
  * @param recordId - UUID of the record to update
- * @param data - New data object to replace the existing data
+ * @param data - Partial data to update
  * @returns { success: true, data: record } or { success: false, error: message }
  */
-export async function updateEntityRecordAction(recordId: string, data: Record<string, any>) {
+export async function updateEntityRecordAction(
+  recordId: string,
+  tableId: string,
+  data: Record<string, any>
+) {
   try {
-    // ===== 1. AUTHENTICATE USER
     const supabase = await createClient()
-    const { data: authData, error: authError } = await supabase.auth.getUser()
+    await requireAuth(supabase)
 
-    if (authError || !authData.user) {
-      return {
-        success: false,
-        error: 'Vous devez être connecté pour modifier un enregistrement.',
-      }
-    }
-
-    // ===== 2. VERIFY USER HAS ACCESS TO WORKSPACE (via record)
-    // Get the record first to check its table_id
-    const { data: record, error: recordError } = await supabase
-      .from('entity_records')
-      .select('table_id')
-      .eq('id', recordId)
-      .maybeSingle()
-
-    if (recordError || !record) {
-      return {
-        success: false,
-        error: 'Enregistrement non trouvé.',
-      }
-    }
-
-    // Get the parent table to check workspace access
-    const { data: table, error: tableError } = await supabase
+    // ===== VERIFY TABLE EXISTS AND USER HAS ACCESS
+    const { data: table } = await supabase
       .from('entity_tables')
       .select('workspace_id')
-      .eq('id', (record as any).table_id)
+      .eq('id', tableId)
       .maybeSingle()
 
-    if (tableError || !table) {
-      return {
-        success: false,
-        error: 'Table parente non trouvée.',
-      }
+    if (!table) {
+      throw new NotFoundError('Table')
     }
 
-    // Check if user is member of the workspace
-    const { data: membership, error: membershipError } = await supabase
-      .from('organization_members')
-      .select('organization_id')
-      .eq('organization_id', (table as any).workspace_id)
-      .eq('user_id', authData.user.id)
-      .maybeSingle()
+    // Verify workspace access
+    await requireTableInWorkspace(supabase, tableId, table.workspace_id)
 
-    if (membershipError || !membership) {
-      return {
-        success: false,
-        error: 'Vous n\'avez pas accès à ce workspace.',
-      }
-    }
-
-    // ===== 3. UPDATE RECORD IN DATABASE
-    const { data: updatedRecord, error: updateError } = await supabase
+    // ===== UPDATE RECORD
+    const { data: record, error: recordError } = await supabase
       .from('entity_records')
-      .update({
-        data: data,
-      })
+      .update({ data })
       .eq('id', recordId)
-      .select('*')
+      .eq('table_id', tableId)
+      .select()
       .single()
 
-    if (updateError || !updatedRecord) {
-      console.error('Error updating record:', updateError)
-      return {
-        success: false,
-        error: 'Impossible de modifier l\'enregistrement. Veuillez réessayer.',
-      }
-    }
+    if (recordError) throw new Error('Failed to update record.')
 
-    // ===== 4. REVALIDATE CACHE
-    revalidatePath('/dashboard')
-    revalidatePath(`/table/${(record as any).table_id}`)
+    // Revalidate table view
+    revalidatePath(`/workspace/*/table/${tableId}`)
 
-    // ===== 5. RETURN SUCCESS
-    return {
-      success: true,
-      data: updatedRecord as EntityRecord,
-    }
+    return { success: true, data: record as EntityRecord }
   } catch (error) {
-    console.error('Error in updateEntityRecordAction:', error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Une erreur inconnue est survenue.',
-    }
+    const message = error instanceof Error ? error.message : 'An unknown error occurred.'
+    return { success: false, error: message }
   }
 }
 
 /**
- * Delete an entity record
+ * Delete a record
  *
  * @param recordId - UUID of the record to delete
+ * @param tableId - UUID of the table (for validation)
  * @returns { success: true } or { success: false, error: message }
  */
-export async function deleteEntityRecordAction(recordId: string) {
+export async function deleteEntityRecordAction(recordId: string, tableId: string) {
   try {
-    // ===== 1. AUTHENTICATE USER
     const supabase = await createClient()
-    const { data: authData, error: authError } = await supabase.auth.getUser()
+    await requireAuth(supabase)
 
-    if (authError || !authData.user) {
-      return {
-        success: false,
-        error: 'Vous devez être connecté pour supprimer un enregistrement.',
-      }
-    }
-
-    // ===== 2. VERIFY USER HAS ACCESS TO WORKSPACE (via record)
-    // Get the record first to check its table_id
-    const { data: record, error: recordError } = await supabase
-      .from('entity_records')
-      .select('table_id')
-      .eq('id', recordId)
-      .maybeSingle()
-
-    if (recordError || !record) {
-      return {
-        success: false,
-        error: 'Enregistrement non trouvé.',
-      }
-    }
-
-    // Get the parent table to check workspace access
-    const { data: table, error: tableError } = await supabase
+    // ===== VERIFY TABLE EXISTS AND USER HAS ACCESS
+    const { data: table } = await supabase
       .from('entity_tables')
       .select('workspace_id')
-      .eq('id', (record as any).table_id)
+      .eq('id', tableId)
       .maybeSingle()
 
-    if (tableError || !table) {
-      return {
-        success: false,
-        error: 'Table parente non trouvée.',
-      }
+    if (!table) {
+      throw new NotFoundError('Table')
     }
 
-    // Check if user is member of the workspace
-    const { data: membership, error: membershipError } = await supabase
-      .from('organization_members')
-      .select('organization_id')
-      .eq('organization_id', (table as any).workspace_id)
-      .eq('user_id', authData.user.id)
-      .maybeSingle()
+    // Verify workspace access
+    await requireTableInWorkspace(supabase, tableId, table.workspace_id)
 
-    if (membershipError || !membership) {
-      return {
-        success: false,
-        error: 'Vous n\'avez pas accès à ce workspace.',
-      }
-    }
-
-    // ===== 3. DELETE RECORD FROM DATABASE
+    // ===== DELETE RECORD
     const { error: deleteError } = await supabase
       .from('entity_records')
       .delete()
       .eq('id', recordId)
+      .eq('table_id', tableId)
 
-    if (deleteError) {
-      console.error('Error deleting record:', deleteError)
-      return {
-        success: false,
-        error: 'Impossible de supprimer l\'enregistrement. Veuillez réessayer.',
-      }
-    }
+    if (deleteError) throw new Error('Failed to delete record.')
 
-    // ===== 4. REVALIDATE CACHE
-    revalidatePath('/dashboard')
-    revalidatePath(`/table/${(record as any).table_id}`)
+    // Revalidate table view
+    revalidatePath(`/workspace/*/table/${tableId}`)
 
-    // ===== 5. RETURN SUCCESS
-    return {
-      success: true,
-    }
+    return { success: true, data: null }
   } catch (error) {
-    console.error('Error in deleteEntityRecordAction:', error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Une erreur inconnue est survenue.',
-    }
+    const message = error instanceof Error ? error.message : 'An unknown error occurred.'
+    return { success: false, error: message }
   }
 }

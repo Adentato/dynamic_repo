@@ -3,6 +3,13 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import {
+  requireAuth,
+  requireWorkspaceAccess,
+  AuthenticationError,
+  WorkspaceAccessError,
+  NotFoundError,
+} from '@/lib/auth/workspace'
 import type { Project, ProjectWithTables, WorkspaceHierarchy } from '@/types/entities'
 
 /**
@@ -10,6 +17,11 @@ import type { Project, ProjectWithTables, WorkspaceHierarchy } from '@/types/ent
  *
  * Manages projects within a workspace. Projects are intermediate level
  * that contain related tables that can reference each other.
+ *
+ * All actions use centralized auth helpers to reduce duplication:
+ * - requireAuth() for authentication
+ * - requireWorkspaceAccess() for authorization
+ * - Custom error classes for proper error handling
  */
 
 // ===== Validation schemas
@@ -31,27 +43,13 @@ export type UpdateProjectInput = z.infer<typeof updateProjectSchema>
 export async function createProjectAction(input: CreateProjectInput) {
   try {
     const supabase = await createClient()
-
-    // Authenticate user
-    const { data: authData, error: authError } = await supabase.auth.getUser()
-    if (authError || !authData.user) {
-      return { success: false, error: 'You must be logged in to create a project.' }
-    }
+    const user = await requireAuth(supabase)
 
     // Validate input
     const validatedInput = createProjectSchema.parse(input)
 
-    // Verify user is member of workspace
-    const { data: membership, error: membershipError } = await supabase
-      .from('organization_members')
-      .select('organization_id')
-      .eq('organization_id', validatedInput.workspace_id)
-      .eq('user_id', authData.user.id)
-      .maybeSingle()
-
-    if (membershipError || !membership) {
-      return { success: false, error: 'You do not have access to this workspace.' }
-    }
+    // Verify workspace access (auth + permission check)
+    await requireWorkspaceAccess(supabase, user.id, validatedInput.workspace_id)
 
     // Create project
     const { data: project, error: projectError } = await supabase
@@ -65,11 +63,9 @@ export async function createProjectAction(input: CreateProjectInput) {
       .select()
       .single()
 
-    if (projectError) {
-      return { success: false, error: 'Failed to create project.' }
-    }
+    if (projectError) throw new Error('Failed to create project.')
 
-    // Revalidate dashboard and workspace routes
+    // Revalidate paths
     revalidatePath('/dashboard')
     revalidatePath(`/workspace/${validatedInput.workspace_id}`)
 
@@ -84,14 +80,9 @@ export async function createProjectAction(input: CreateProjectInput) {
 export async function getProjectAction(projectId: string) {
   try {
     const supabase = await createClient()
+    const user = await requireAuth(supabase)
 
-    // Authenticate user
-    const { data: authData, error: authError } = await supabase.auth.getUser()
-    if (authError || !authData.user) {
-      return { success: false, error: 'You must be logged in.' }
-    }
-
-    // Query 1: Get project by ID
+    // Get project by ID
     const { data: project, error: projectError } = await supabase
       .from('projects')
       .select('*')
@@ -99,31 +90,20 @@ export async function getProjectAction(projectId: string) {
       .maybeSingle()
 
     if (projectError || !project) {
-      return { success: false, error: 'Project not found.' }
+      throw new NotFoundError('Project')
     }
 
-    // Verify user has access to workspace
-    const { data: membership } = await supabase
-      .from('organization_members')
-      .select('organization_id')
-      .eq('organization_id', project.workspace_id)
-      .eq('user_id', authData.user.id)
-      .maybeSingle()
+    // Verify user has access to workspace (this also validates the project workspace_id)
+    await requireWorkspaceAccess(supabase, user.id, project.workspace_id)
 
-    if (!membership) {
-      return { success: false, error: 'You do not have access to this project.' }
-    }
-
-    // Query 2: Get all tables in this project
+    // Get all tables in this project
     const { data: tables, error: tablesError } = await supabase
       .from('entity_tables')
       .select('*')
       .eq('project_id', projectId)
       .order('created_at', { ascending: false })
 
-    if (tablesError) {
-      return { success: false, error: 'Failed to fetch project tables.' }
-    }
+    if (tablesError) throw new Error('Failed to fetch project tables.')
 
     return {
       success: true,
@@ -142,17 +122,12 @@ export async function getProjectAction(projectId: string) {
 export async function updateProjectAction(input: UpdateProjectInput) {
   try {
     const supabase = await createClient()
-
-    // Authenticate user
-    const { data: authData, error: authError } = await supabase.auth.getUser()
-    if (authError || !authData.user) {
-      return { success: false, error: 'You must be logged in.' }
-    }
+    const user = await requireAuth(supabase)
 
     // Validate input
     const validatedInput = updateProjectSchema.parse(input)
 
-    // Get project to verify workspace access
+    // Get project and verify it exists
     const { data: project, error: projectError } = await supabase
       .from('projects')
       .select('workspace_id')
@@ -160,20 +135,11 @@ export async function updateProjectAction(input: UpdateProjectInput) {
       .maybeSingle()
 
     if (projectError || !project) {
-      return { success: false, error: 'Project not found.' }
+      throw new NotFoundError('Project')
     }
 
-    // Verify user has access to workspace
-    const { data: membership } = await supabase
-      .from('organization_members')
-      .select('organization_id')
-      .eq('organization_id', project.workspace_id)
-      .eq('user_id', authData.user.id)
-      .maybeSingle()
-
-    if (!membership) {
-      return { success: false, error: 'You do not have access to this project.' }
-    }
+    // Verify workspace access
+    await requireWorkspaceAccess(supabase, user.id, project.workspace_id)
 
     // Update project
     const updateData: Record<string, any> = {}
@@ -189,9 +155,7 @@ export async function updateProjectAction(input: UpdateProjectInput) {
       .select()
       .single()
 
-    if (updateError) {
-      return { success: false, error: 'Failed to update project.' }
-    }
+    if (updateError) throw new Error('Failed to update project.')
 
     revalidatePath('/dashboard')
     revalidatePath(`/workspace/${project.workspace_id}`)
@@ -207,14 +171,9 @@ export async function updateProjectAction(input: UpdateProjectInput) {
 export async function deleteProjectAction(projectId: string) {
   try {
     const supabase = await createClient()
+    const user = await requireAuth(supabase)
 
-    // Authenticate user
-    const { data: authData, error: authError } = await supabase.auth.getUser()
-    if (authError || !authData.user) {
-      return { success: false, error: 'You must be logged in.' }
-    }
-
-    // Get project to verify workspace access
+    // Get project and verify it exists
     const { data: project, error: projectError } = await supabase
       .from('projects')
       .select('workspace_id')
@@ -222,30 +181,16 @@ export async function deleteProjectAction(projectId: string) {
       .maybeSingle()
 
     if (projectError || !project) {
-      return { success: false, error: 'Project not found.' }
+      throw new NotFoundError('Project')
     }
 
-    // Verify user has access to workspace
-    const { data: membership } = await supabase
-      .from('organization_members')
-      .select('organization_id')
-      .eq('organization_id', project.workspace_id)
-      .eq('user_id', authData.user.id)
-      .maybeSingle()
+    // Verify workspace access
+    await requireWorkspaceAccess(supabase, user.id, project.workspace_id)
 
-    if (!membership) {
-      return { success: false, error: 'You do not have access to this project.' }
-    }
+    // Delete project (cascade will delete associated tables)
+    const { error: deleteError } = await supabase.from('projects').delete().eq('id', projectId)
 
-    // Delete project (cascade will delete associated tables and their data)
-    const { error: deleteError } = await supabase
-      .from('projects')
-      .delete()
-      .eq('id', projectId)
-
-    if (deleteError) {
-      return { success: false, error: 'Failed to delete project.' }
-    }
+    if (deleteError) throw new Error('Failed to delete project.')
 
     revalidatePath('/dashboard')
     revalidatePath(`/workspace/${project.workspace_id}`)
@@ -263,24 +208,10 @@ export async function getWorkspaceHierarchyAction(
 ): Promise<{ success: boolean; data?: WorkspaceHierarchy; error?: string }> {
   try {
     const supabase = await createClient()
+    const user = await requireAuth(supabase)
 
-    // Authenticate user
-    const { data: authData, error: authError } = await supabase.auth.getUser()
-    if (authError || !authData.user) {
-      return { success: false, error: 'You must be logged in to access this workspace.' }
-    }
-
-    // Verify user is member of workspace
-    const { data: membership, error: membershipError } = await supabase
-      .from('organization_members')
-      .select('organization_id')
-      .eq('organization_id', workspaceId)
-      .eq('user_id', authData.user.id)
-      .maybeSingle()
-
-    if (membershipError || !membership) {
-      return { success: false, error: 'You do not have access to this workspace.' }
-    }
+    // Verify workspace access
+    await requireWorkspaceAccess(supabase, user.id, workspaceId)
 
     // Query 1: Fetch all projects in workspace
     const { data: projects, error: projectsError } = await supabase
@@ -289,11 +220,10 @@ export async function getWorkspaceHierarchyAction(
       .eq('workspace_id', workspaceId)
       .order('created_at', { ascending: false })
 
-    if (projectsError) {
-      return { success: false, error: 'Failed to fetch projects.' }
-    }
+    if (projectsError) throw new Error('Failed to fetch projects.')
 
     // Query 2: Fetch tables in each project
+    // TODO: Optimize with nested select once Supabase relationship is defined
     const projectsWithTables: ProjectWithTables[] = []
 
     for (const project of projects || []) {
@@ -319,9 +249,7 @@ export async function getWorkspaceHierarchyAction(
       .is('project_id', null)
       .order('created_at', { ascending: false })
 
-    if (orphanError) {
-      return { success: false, error: 'Failed to fetch tables.' }
-    }
+    if (orphanError) throw new Error('Failed to fetch tables.')
 
     const hierarchy: WorkspaceHierarchy = {
       projects: projectsWithTables,
