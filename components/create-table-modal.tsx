@@ -40,8 +40,13 @@ export function CreateTableModal({
 
   const handleSuccess = (tableId: string) => {
     setOpen(false)
-    // Navigate to the new table
-    router.push(`/workspace/${workspaceId}/table/${tableId}`)
+    // Navigate to the new table with full path
+    if (projectId) {
+      router.push(`/dashboard/workspace/${workspaceId}/project/${projectId}/table/${tableId}`)
+    } else {
+      // Fallback if no projectId provided
+      router.push(`/dashboard/workspace/${workspaceId}`)
+    }
   }
 
   return (
