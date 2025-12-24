@@ -157,7 +157,7 @@ export async function createEntityRecordAction(
     if (recordError) throw new Error('Failed to create record.')
 
     // Revalidate table view
-    revalidatePath(`/workspace/*/table/${validatedInput.table_id}`)
+    revalidatePath('/dashboard')
 
     return success(record as EntityRecord)
   } catch (error) {
@@ -208,7 +208,7 @@ export async function updateEntityRecordAction(
     if (recordError) throw new Error('Failed to update record.')
 
     // Revalidate table view
-    revalidatePath(`/workspace/*/table/${tableId}`)
+    revalidatePath('/dashboard')
 
     return success(record as EntityRecord)
   } catch (error) {
@@ -255,7 +255,7 @@ export async function deleteEntityRecordAction(
     if (deleteError) throw new Error('Failed to delete record.')
 
     // Revalidate table view
-    revalidatePath(`/workspace/*/table/${tableId}`)
+    revalidatePath('/dashboard')
 
     return success(undefined)
   } catch (error) {

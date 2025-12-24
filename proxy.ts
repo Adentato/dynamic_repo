@@ -117,18 +117,17 @@ export async function proxy(request: NextRequest) {
     }
 
     // Step 2: Check if user has an organization
-    // Using maybeSingle() to avoid errors when no organization exists
-    const { data: membership, error: membershipError } = await supabase
+    // Get all memberships (user can have multiple workspaces)
+    const { data: memberships, error: membershipError } = await supabase
       .from('organization_members')
       .select('organization_id')
       .eq('user_id', user.id)
-      .maybeSingle()
 
     console.log('[proxy] User:', user.id, '| Path:', pathname)
-    console.log('[proxy] Membership:', membership)
+    console.log('[proxy] Memberships:', memberships?.length, memberships?.length ? memberships[0] : null)
 
     // No organization found - redirect to onboarding
-    if (!membership || membershipError) {
+    if (!memberships || memberships.length === 0 || membershipError) {
       const url = request.nextUrl.clone()
       url.pathname = '/onboarding'
       console.log('[proxy] No membership, redirecting to onboarding')

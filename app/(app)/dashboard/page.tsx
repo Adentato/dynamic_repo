@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { Navbar } from '@/components/Navbar'
+import { CreateWorkspaceModal } from '@/components/create-workspace-modal'
+import { Button } from '@/components/ui/button'
 
 interface Organization {
   id: string
@@ -27,12 +29,6 @@ export default async function DashboardPage() {
 
   if (membershipError || !memberships || memberships.length === 0) {
     redirect('/onboarding')
-  }
-
-  // Si l'utilisateur n'a qu'une seule organization, rediriger vers elle
-  if (memberships.length === 1) {
-    const workspace = (memberships[0] as any).organization as Organization
-    redirect(`/dashboard/workspace/${workspace.id}`)
   }
 
   // Récupérer le profil
@@ -74,6 +70,17 @@ export default async function DashboardPage() {
 
         {/* Content */}
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
+          <div className="mb-8 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-zinc-900">
+              Vos workspaces ({organizations.length})
+            </h2>
+            <CreateWorkspaceModal>
+              <Button>
+                + Créer un workspace
+              </Button>
+            </CreateWorkspaceModal>
+          </div>
+
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {organizations.map((org) => (
               <Link
