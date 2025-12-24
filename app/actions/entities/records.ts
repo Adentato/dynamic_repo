@@ -11,6 +11,7 @@ import {
   requireTableInWorkspace,
   NotFoundError,
 } from '@/lib/auth/workspace'
+import { success, failure, type ActionResult } from '@/lib/types/action-result'
 import type { EntityRecord } from '@/types/entities'
 
 /**
@@ -38,17 +39,17 @@ export interface PaginatedRecords {
  * @param tableId - UUID of the entity_table
  * @param page - Page number (1-indexed), default: 1
  * @param pageSize - Records per page, default: 50
- * @returns Paginated records with metadata
+ * @returns ActionResult<PaginatedRecords>
  *
  * @example
  * const result = await getEntityRecordsAction(tableId, 1, 50)
- * // Returns: { total: 1000, hasNextPage: true, records: [...50 items] }
+ * // Returns: { success: true, data: { total: 1000, hasNextPage: true, records: [...50 items] } }
  */
 export async function getEntityRecordsAction(
   tableId: string,
   page: number = 1,
   pageSize: number = 50
-) {
+): Promise<ActionResult<PaginatedRecords>> {
   try {
     const supabase = await createClient()
     await requireAuth(supabase)
@@ -99,21 +100,17 @@ export async function getEntityRecordsAction(
     const hasNextPage = page < totalPages
     const hasPreviousPage = page > 1
 
-    return {
-      success: true,
-      data: {
-        records: (records || []) as EntityRecord[],
-        total,
-        page,
-        pageSize,
-        hasNextPage,
-        hasPreviousPage,
-        totalPages,
-      } as PaginatedRecords,
-    }
+    return success({
+      records: (records || []) as EntityRecord[],
+      total,
+      page,
+      pageSize,
+      hasNextPage,
+      hasPreviousPage,
+      totalPages,
+    } as PaginatedRecords)
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'An unknown error occurred.'
-    return { success: false, error: message }
+    return failure(error)
   }
 }
 
@@ -121,9 +118,11 @@ export async function getEntityRecordsAction(
  * Create a new record in an entity table
  *
  * @param input - UpsertRecordInput with table_id and data
- * @returns { success: true, data: record } or { success: false, error: message }
+ * @returns ActionResult<EntityRecord>
  */
-export async function createEntityRecordAction(input: UpsertRecordInput) {
+export async function createEntityRecordAction(
+  input: UpsertRecordInput
+): Promise<ActionResult<EntityRecord>> {
   try {
     const supabase = await createClient()
     await requireAuth(supabase)
@@ -160,10 +159,9 @@ export async function createEntityRecordAction(input: UpsertRecordInput) {
     // Revalidate table view
     revalidatePath(`/workspace/*/table/${validatedInput.table_id}`)
 
-    return { success: true, data: record as EntityRecord }
+    return success(record as EntityRecord)
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'An unknown error occurred.'
-    return { success: false, error: message }
+    return failure(error)
   }
 }
 
@@ -171,14 +169,15 @@ export async function createEntityRecordAction(input: UpsertRecordInput) {
  * Update an existing record
  *
  * @param recordId - UUID of the record to update
+ * @param tableId - UUID of the table
  * @param data - Partial data to update
- * @returns { success: true, data: record } or { success: false, error: message }
+ * @returns ActionResult<EntityRecord>
  */
 export async function updateEntityRecordAction(
   recordId: string,
   tableId: string,
   data: Record<string, any>
-) {
+): Promise<ActionResult<EntityRecord>> {
   try {
     const supabase = await createClient()
     await requireAuth(supabase)
@@ -211,10 +210,9 @@ export async function updateEntityRecordAction(
     // Revalidate table view
     revalidatePath(`/workspace/*/table/${tableId}`)
 
-    return { success: true, data: record as EntityRecord }
+    return success(record as EntityRecord)
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'An unknown error occurred.'
-    return { success: false, error: message }
+    return failure(error)
   }
 }
 
@@ -223,9 +221,12 @@ export async function updateEntityRecordAction(
  *
  * @param recordId - UUID of the record to delete
  * @param tableId - UUID of the table (for validation)
- * @returns { success: true } or { success: false, error: message }
+ * @returns ActionResult<void>
  */
-export async function deleteEntityRecordAction(recordId: string, tableId: string) {
+export async function deleteEntityRecordAction(
+  recordId: string,
+  tableId: string
+): Promise<ActionResult<void>> {
   try {
     const supabase = await createClient()
     await requireAuth(supabase)
@@ -256,9 +257,8 @@ export async function deleteEntityRecordAction(recordId: string, tableId: string
     // Revalidate table view
     revalidatePath(`/workspace/*/table/${tableId}`)
 
-    return { success: true, data: null }
+    return success(undefined)
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'An unknown error occurred.'
-    return { success: false, error: message }
+    return failure(error)
   }
 }

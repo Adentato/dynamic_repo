@@ -99,7 +99,7 @@ export function CreateProjectModal({
       const result = await createProjectAction(input)
 
       if (!result.success) {
-        setSubmitError(result.error)
+        setSubmitError(result.error.message)
         return
       }
 

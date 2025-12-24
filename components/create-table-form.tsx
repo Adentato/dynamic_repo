@@ -62,7 +62,7 @@ export function CreateTableForm({
       const result = await createEntityTableAction(input)
 
       if (!result.success) {
-        setSubmitError(result.error)
+        setSubmitError(result.error.message)
         return
       }
 

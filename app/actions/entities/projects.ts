@@ -6,10 +6,9 @@ import { z } from 'zod'
 import {
   requireAuth,
   requireWorkspaceAccess,
-  AuthenticationError,
-  WorkspaceAccessError,
   NotFoundError,
 } from '@/lib/auth/workspace'
+import { success, failure, type ActionResult } from '@/lib/types/action-result'
 import type { Project, ProjectWithTables, WorkspaceHierarchy } from '@/types/entities'
 
 /**
@@ -40,7 +39,9 @@ export type CreateProjectInput = z.infer<typeof createProjectSchema>
 export type UpdateProjectInput = z.infer<typeof updateProjectSchema>
 
 // ===== CREATE PROJECT
-export async function createProjectAction(input: CreateProjectInput) {
+export async function createProjectAction(
+  input: CreateProjectInput
+): Promise<ActionResult<Project>> {
   try {
     const supabase = await createClient()
     const user = await requireAuth(supabase)
@@ -69,15 +70,16 @@ export async function createProjectAction(input: CreateProjectInput) {
     revalidatePath('/dashboard')
     revalidatePath(`/workspace/${validatedInput.workspace_id}`)
 
-    return { success: true, data: project as Project }
+    return success(project as Project)
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'An unknown error occurred.'
-    return { success: false, error: message }
+    return failure(error)
   }
 }
 
 // ===== GET PROJECT
-export async function getProjectAction(projectId: string) {
+export async function getProjectAction(
+  projectId: string
+): Promise<ActionResult<ProjectWithTables>> {
   try {
     const supabase = await createClient()
     const user = await requireAuth(supabase)
@@ -105,21 +107,19 @@ export async function getProjectAction(projectId: string) {
 
     if (tablesError) throw new Error('Failed to fetch project tables.')
 
-    return {
-      success: true,
-      data: {
-        ...project,
-        tables: tables || [],
-      } as ProjectWithTables,
-    }
+    return success({
+      ...project,
+      tables: tables || [],
+    } as ProjectWithTables)
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'An unknown error occurred.'
-    return { success: false, error: message }
+    return failure(error)
   }
 }
 
 // ===== UPDATE PROJECT
-export async function updateProjectAction(input: UpdateProjectInput) {
+export async function updateProjectAction(
+  input: UpdateProjectInput
+): Promise<ActionResult<Project>> {
   try {
     const supabase = await createClient()
     const user = await requireAuth(supabase)
@@ -160,15 +160,14 @@ export async function updateProjectAction(input: UpdateProjectInput) {
     revalidatePath('/dashboard')
     revalidatePath(`/workspace/${project.workspace_id}`)
 
-    return { success: true, data: updatedProject as Project }
+    return success(updatedProject as Project)
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'An unknown error occurred.'
-    return { success: false, error: message }
+    return failure(error)
   }
 }
 
 // ===== DELETE PROJECT
-export async function deleteProjectAction(projectId: string) {
+export async function deleteProjectAction(projectId: string): Promise<ActionResult<void>> {
   try {
     const supabase = await createClient()
     const user = await requireAuth(supabase)
@@ -195,17 +194,16 @@ export async function deleteProjectAction(projectId: string) {
     revalidatePath('/dashboard')
     revalidatePath(`/workspace/${project.workspace_id}`)
 
-    return { success: true, data: null }
+    return success(undefined)
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'An unknown error occurred.'
-    return { success: false, error: message }
+    return failure(error)
   }
 }
 
 // ===== GET WORKSPACE HIERARCHY (Projects + Tables)
 export async function getWorkspaceHierarchyAction(
   workspaceId: string
-): Promise<{ success: boolean; data?: WorkspaceHierarchy; error?: string }> {
+): Promise<ActionResult<WorkspaceHierarchy>> {
   try {
     const supabase = await createClient()
     const user = await requireAuth(supabase)
@@ -256,9 +254,8 @@ export async function getWorkspaceHierarchyAction(
       tablesWithoutProject: orphanTables || [],
     }
 
-    return { success: true, data: hierarchy }
+    return success(hierarchy)
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'An unknown error occurred.'
-    return { success: false, error: message }
+    return failure(error)
   }
 }

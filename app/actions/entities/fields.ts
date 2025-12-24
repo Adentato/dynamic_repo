@@ -13,6 +13,7 @@ import {
   requireWorkspaceAccess,
   NotFoundError,
 } from '@/lib/auth/workspace'
+import { success, failure, type ActionResult } from '@/lib/types/action-result'
 import type {
   EntityField,
 } from '@/types/entities'
@@ -21,9 +22,11 @@ import type {
  * Create a new field in an entity table
  *
  * @param input - CreateFieldInput with table_id, name, type, options
- * @returns { success: true, data: field } or { success: false, error: message }
+ * @returns ActionResult<EntityField>
  */
-export async function createEntityFieldAction(input: CreateFieldInput) {
+export async function createEntityFieldAction(
+  input: CreateFieldInput
+): Promise<ActionResult<EntityField>> {
   try {
     const supabase = await createClient()
     const user = await requireAuth(supabase)
@@ -77,13 +80,9 @@ export async function createEntityFieldAction(input: CreateFieldInput) {
     revalidatePath('/dashboard')
     revalidatePath(`/table/${validatedInput.table_id}`)
 
-    return {
-      success: true,
-      data: newField as EntityField,
-    }
+    return success(newField as EntityField)
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Une erreur inconnue est survenue.'
-    return { success: false, error: message }
+    return failure(error)
   }
 }
 
@@ -91,9 +90,11 @@ export async function createEntityFieldAction(input: CreateFieldInput) {
  * Update an existing field
  *
  * @param input - UpdateFieldInput with field_id and optional fields to update
- * @returns { success: true, data: field } or { success: false, error: message }
+ * @returns ActionResult<EntityField>
  */
-export async function updateEntityFieldAction(input: UpdateFieldInput) {
+export async function updateEntityFieldAction(
+  input: UpdateFieldInput
+): Promise<ActionResult<EntityField>> {
   try {
     const supabase = await createClient()
     const user = await requireAuth(supabase)
@@ -142,13 +143,9 @@ export async function updateEntityFieldAction(input: UpdateFieldInput) {
     revalidatePath('/dashboard')
     revalidatePath(`/table/${(field as any).table_id}`)
 
-    return {
-      success: true,
-      data: updatedField as EntityField,
-    }
+    return success(updatedField as EntityField)
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Une erreur inconnue est survenue.'
-    return { success: false, error: message }
+    return failure(error)
   }
 }
 
@@ -156,9 +153,9 @@ export async function updateEntityFieldAction(input: UpdateFieldInput) {
  * Delete an entity field
  *
  * @param fieldId - UUID of the field to delete
- * @returns { success: true } or { success: false, error: message }
+ * @returns ActionResult<void>
  */
-export async function deleteEntityFieldAction(fieldId: string) {
+export async function deleteEntityFieldAction(fieldId: string): Promise<ActionResult<void>> {
   try {
     const supabase = await createClient()
     const user = await requireAuth(supabase)
@@ -195,11 +192,8 @@ export async function deleteEntityFieldAction(fieldId: string) {
     revalidatePath('/dashboard')
     revalidatePath(`/table/${(field as any).table_id}`)
 
-    return {
-      success: true,
-    }
+    return success(undefined)
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Une erreur inconnue est survenue.'
-    return { success: false, error: message }
+    return failure(error)
   }
 }

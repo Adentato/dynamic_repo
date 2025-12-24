@@ -38,8 +38,8 @@ export default async function TablePage({ params }: TablePageProps) {
     // This will validate workspace access via RLS policies and Server Action authorization checks
     const tableResult = await getEntityTableDetailsAction(tableId)
 
-    if (!tableResult.success || !tableResult.data) {
-      console.error('Error fetching table:', tableResult.error)
+    if (!tableResult.success) {
+      console.error('Error fetching table:', tableResult.error.message)
       notFound()
     }
 
@@ -49,11 +49,11 @@ export default async function TablePage({ params }: TablePageProps) {
     const recordsResult = await getEntityRecordsAction(tableId)
 
     if (!recordsResult.success) {
-      console.error('Error fetching records:', recordsResult.error)
+      console.error('Error fetching records:', recordsResult.error.message)
       // Don't 404 on records error - table exists but might have no data
     }
 
-    const records: typeof recordsResult.data = recordsResult.success && recordsResult.data ? recordsResult.data : []
+    const records = recordsResult.success ? recordsResult.data : { records: [], total: 0, page: 1, pageSize: 50, hasNextPage: false, hasPreviousPage: false, totalPages: 0 }
 
     // ===== 4. RENDER PAGE
     return (
@@ -76,7 +76,7 @@ export default async function TablePage({ params }: TablePageProps) {
                 </div>
                 <div className="text-right text-sm text-gray-500">
                   <p>{table.fields.length} colonnes</p>
-                  <p>{records.length} lignes</p>
+                  <p>{records.records.length} lignes</p>
                 </div>
               </div>
             </div>
@@ -98,9 +98,9 @@ export default async function TablePage({ params }: TablePageProps) {
               {/* Table Data - Now with TanStack Table */}
               <div>
                 <h2 className="mb-4 text-lg font-semibold text-gray-900">
-                  📊 Données ({records.length} lignes)
+                  📊 Données ({records.records.length} lignes)
                 </h2>
-                <EntityTable table={table} initialRecords={records} />
+                <EntityTable table={table} initialRecords={records.records} />
               </div>
 
               {/* Debug Info */}

@@ -29,7 +29,9 @@
       "Bash(cat:*)",
       "Bash(head:*)",
       "Bash(git add:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(wc:*)",
+      "Bash(npm run build:*)"
     ]
   }
 }

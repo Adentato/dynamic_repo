@@ -11,6 +11,7 @@ import {
   requireWorkspaceAccess,
   requireProjectInWorkspace,
 } from '@/lib/auth/workspace'
+import { success, failure, type ActionResult } from '@/lib/types/action-result'
 import type {
   EntityTable,
   EntityField,
@@ -21,9 +22,11 @@ import type {
  * Create a new entity table in a workspace or project
  *
  * @param input - CreateTableInput with workspace_id, name, description, and optional project_id
- * @returns { success: true, data: table } or { success: false, error: message }
+ * @returns ActionResult<EntityTable>
  */
-export async function createEntityTableAction(input: CreateTableInput) {
+export async function createEntityTableAction(
+  input: CreateTableInput
+): Promise<ActionResult<EntityTable>> {
   try {
     const supabase = await createClient()
     const user = await requireAuth(supabase)
@@ -66,13 +69,9 @@ export async function createEntityTableAction(input: CreateTableInput) {
       revalidatePath(`/workspace/${validatedInput.workspace_id}/project/${validatedInput.project_id}`)
     }
 
-    return {
-      success: true,
-      data: newTable as EntityTable,
-    }
+    return success(newTable as EntityTable)
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Une erreur inconnue est survenue.'
-    return { success: false, error: message }
+    return failure(error)
   }
 }
 
@@ -80,9 +79,11 @@ export async function createEntityTableAction(input: CreateTableInput) {
  * Get entity table details with all its fields
  *
  * @param tableId - UUID of the entity_table
- * @returns { success: true, data: EntityTableWithFields } or { success: false, error: message }
+ * @returns ActionResult<EntityTableWithFields>
  */
-export async function getEntityTableDetailsAction(tableId: string) {
+export async function getEntityTableDetailsAction(
+  tableId: string
+): Promise<ActionResult<EntityTableWithFields>> {
   try {
     const supabase = await createClient()
     const user = await requireAuth(supabase)
@@ -122,12 +123,8 @@ export async function getEntityTableDetailsAction(tableId: string) {
       fields: sortedFields,
     }
 
-    return {
-      success: true,
-      data: result,
-    }
+    return success(result)
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Une erreur inconnue est survenue.'
-    return { success: false, error: message }
+    return failure(error)
   }
 }

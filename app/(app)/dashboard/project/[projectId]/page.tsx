@@ -46,7 +46,7 @@ export default async function ProjectPage({ params: paramsPromise }: ProjectPage
     const projectResult = await getProjectAction(params.projectId)
     console.log('Project result:', projectResult)
 
-    if (!projectResult.success || !projectResult.data) {
+    if (!projectResult.success) {
       return (
         <>
           <Navbar currentUser={null} />
@@ -54,7 +54,7 @@ export default async function ProjectPage({ params: paramsPromise }: ProjectPage
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
               <div className="rounded-lg border border-red-200 bg-red-50 p-12 text-center">
                 <h2 className="text-lg font-semibold text-red-900">
-                  {projectResult.error || 'Projet non trouvé'}
+                  {projectResult.error.message || 'Projet non trouvé'}
                 </h2>
                 <p className="mt-2 text-sm text-red-600">
                   Project ID: {params.projectId}
