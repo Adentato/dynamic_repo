@@ -29,19 +29,18 @@ export async function getCurrentUser() {
 
   const profile = profileData as Profile
 
-  // Fetch organization - use maybeSingle() to avoid errors if no org exists
-  // maybeSingle() returns null instead of throwing when no row is found
-  const { data: memberData, error: memberError } = await supabase
+  // Fetch first organization (user can have multiple workspaces)
+  // Get all memberships and take the first one
+  const { data: membersData, error: memberError } = await supabase
     .from('organization_members')
     .select('organization_id, organizations(id, name, slug, description, created_at, updated_at, created_by)')
     .eq('user_id', user.id)
-    .maybeSingle()
 
   let organization: Organization | null = null
 
-  // Only set organization if memberData exists and has organizations
-  if (!memberError && memberData && memberData.organizations) {
-    organization = memberData.organizations as any as Organization
+  // Only set organization if we found at least one membership with organizations
+  if (!memberError && membersData && membersData.length > 0 && membersData[0].organizations) {
+    organization = membersData[0].organizations as any as Organization
   }
 
   // Return in the format expected by Navbar and other components
