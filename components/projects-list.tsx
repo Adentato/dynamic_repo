@@ -30,10 +30,15 @@ export function ProjectsList({ workspaceId, projects }: ProjectsListProps) {
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      {projects.map((project) => (
+      {projects.map((project) => {
+        const href = workspaceId
+          ? `/dashboard/workspace/${workspaceId}/project/${project.id}`
+          : `/dashboard/project/${project.id}`
+        
+        return (
         <Link
           key={project.id}
-          href={`/dashboard/project/${project.id}`}
+          href={href}
           className="group relative overflow-hidden rounded-lg border border-zinc-200 bg-white transition-all hover:border-zinc-400 hover:shadow-md"
         >
           {/* Color indicator bar */}
@@ -94,7 +99,8 @@ export function ProjectsList({ workspaceId, projects }: ProjectsListProps) {
             </div>
           </div>
         </Link>
-      ))}
+        )
+      })}
     </div>
   )
 }

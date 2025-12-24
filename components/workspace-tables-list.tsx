@@ -23,7 +23,7 @@ interface WorkspaceTablesListProps {
  * Props:
  * - workspaceId: UUID of the workspace
  * - tables: Array of EntityTable objects
- * - projectId: Optional UUID of the project (for dashboard navigation)
+ * - projectId: Optional UUID of the project (for dashboard/workspace navigation)
  */
 export function WorkspaceTablesList({ workspaceId, tables, projectId }: WorkspaceTablesListProps) {
   if (tables.length === 0) {
@@ -42,7 +42,7 @@ export function WorkspaceTablesList({ workspaceId, tables, projectId }: Workspac
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {tables.map((table) => {
         const href = projectId
-          ? `/dashboard/project/${projectId}/table/${table.id}`
+          ? `/dashboard/workspace/${workspaceId}/project/${projectId}/table/${table.id}`
           : `/workspace/${workspaceId}/table/${table.id}`
         
         return (
