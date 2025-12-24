@@ -7,6 +7,7 @@ import type { EntityTable } from '@/types/entities'
 interface WorkspaceTablesListProps {
   workspaceId: string
   tables: EntityTable[]
+  projectId?: string
 }
 
 /**
@@ -22,8 +23,9 @@ interface WorkspaceTablesListProps {
  * Props:
  * - workspaceId: UUID of the workspace
  * - tables: Array of EntityTable objects
+ * - projectId: Optional UUID of the project (for dashboard navigation)
  */
-export function WorkspaceTablesList({ workspaceId, tables }: WorkspaceTablesListProps) {
+export function WorkspaceTablesList({ workspaceId, tables, projectId }: WorkspaceTablesListProps) {
   if (tables.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
@@ -38,10 +40,15 @@ export function WorkspaceTablesList({ workspaceId, tables }: WorkspaceTablesList
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      {tables.map((table) => (
+      {tables.map((table) => {
+        const href = projectId
+          ? `/dashboard/project/${projectId}/table/${table.id}`
+          : `/workspace/${workspaceId}/table/${table.id}`
+        
+        return (
         <Link
           key={table.id}
-          href={`/workspace/${workspaceId}/table/${table.id}`}
+          href={href}
           className="group rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-all hover:border-blue-300 hover:shadow-md"
         >
           {/* Header */}
@@ -74,7 +81,8 @@ export function WorkspaceTablesList({ workspaceId, tables }: WorkspaceTablesList
             </span>
           </div>
         </Link>
-      ))}
+        )
+      })}
     </div>
   )
 }

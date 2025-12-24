@@ -33,7 +33,7 @@ export function ProjectsList({ workspaceId, projects }: ProjectsListProps) {
       {projects.map((project) => (
         <Link
           key={project.id}
-          href={`/workspace/${workspaceId}/project/${project.id}`}
+          href={`/dashboard/project/${project.id}`}
           className="group relative overflow-hidden rounded-lg border border-zinc-200 bg-white transition-all hover:border-zinc-400 hover:shadow-md"
         >
           {/* Color indicator bar */}
