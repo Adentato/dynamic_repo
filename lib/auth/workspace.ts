@@ -1,5 +1,3 @@
-'use server'
-
 import type { SupabaseClient } from '@supabase/ssr'
 import type { User } from '@supabase/supabase-js'
 
@@ -184,6 +182,42 @@ export async function requireRecordInWorkspace(
   }
 
   return { table_id: (record as any).table_id }
+}
+
+/**
+ * Verify a field belongs to the specified workspace (via its table)
+ * Throws NotFoundError if field doesn't exist or doesn't belong to workspace
+ *
+ * @param supabase - Supabase client instance
+ * @param fieldId - Field ID to verify
+ * @param workspaceId - Expected workspace ID
+ * @returns Field table_id if valid
+ *
+ * @example
+ * await requireFieldInWorkspace(supabase, fieldId, workspaceId)
+ * // If this doesn't throw, field belongs to workspace
+ */
+export async function requireFieldInWorkspace(
+  supabase: SupabaseClient,
+  fieldId: string,
+  workspaceId: string
+): Promise<{ table_id: string }> {
+  const { data: field, error: fieldError } = await supabase
+    .from('entity_fields')
+    .select('table:entity_tables(workspace_id), id, table_id')
+    .eq('id', fieldId)
+    .maybeSingle()
+
+  if (fieldError || !field) {
+    throw new NotFoundError('Field')
+  }
+
+  // Check workspace access via nested table
+  if ((field as any).table?.workspace_id !== workspaceId) {
+    throw new NotFoundError('Field')
+  }
+
+  return { table_id: (field as any).table_id }
 }
 
 /**
