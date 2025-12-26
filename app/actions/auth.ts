@@ -31,6 +31,7 @@ export async function signUpAction(formData: {
   email: string
   password: string
   fullName: string
+  invitationToken?: string
 }) {
   const supabase = await createClient()
 
@@ -94,8 +95,68 @@ export async function signUpAction(formData: {
     }
   }
 
+  // If invitation token provided, accept the invitation automatically
+  if (formData.invitationToken) {
+    try {
+      // Get invitation details
+      const { data: invitation, error: getInviteError } = await supabase
+        .from('workspace_invitations')
+        .select('*')
+        .eq('token', formData.invitationToken)
+        .maybeSingle()
+
+      if (getInviteError || !invitation) {
+        console.warn('[signUpAction] Invitation not found:', getInviteError)
+      } else if (invitation.email.toLowerCase() === formData.email.toLowerCase()) {
+        // Check if not already a member
+        const { data: existingMember } = await supabase
+          .from('organization_members')
+          .select('id')
+          .eq('organization_id', invitation.organization_id)
+          .eq('user_id', userId)
+          .maybeSingle()
+
+        if (!existingMember) {
+          // Add user as member of organization
+          const { error: memberError } = await supabase
+            .from('organization_members')
+            .insert({
+              organization_id: invitation.organization_id,
+              user_id: userId,
+              role: invitation.role,
+            })
+
+          if (memberError) {
+            console.warn('[signUpAction] Error adding organization member:', memberError)
+          } else {
+            // Mark invitation as accepted
+            const { error: acceptError } = await supabase
+              .from('workspace_invitations')
+              .update({
+                accepted_at: new Date().toISOString(),
+                accepted_by_user_id: userId,
+              })
+              .eq('token', formData.invitationToken)
+
+            if (acceptError) {
+              console.warn('[signUpAction] Error marking invitation as accepted:', acceptError)
+            } else {
+              console.log('[signUpAction] Invitation accepted and user added to organization:', invitation.organization_id)
+            }
+          }
+        } else {
+          console.warn('[signUpAction] User is already a member of this organization')
+        }
+      } else {
+        console.warn('[signUpAction] Invitation email does not match signup email')
+      }
+    } catch (err) {
+      console.warn('[signUpAction] Error accepting invitation:', err)
+    }
+  }
+
   revalidatePath('/', 'layout')
-  redirect('/onboarding')
+  redirect('/after-signup')
 }
 
 export async function signInAction(formData: {

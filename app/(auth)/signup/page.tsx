@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
@@ -21,18 +21,30 @@ import { Input } from '@/components/ui/input'
 
 export default function SignupPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  
+  // Get invitation token and email from URL params
+  const invitationToken = searchParams.get('token')
+  const invitationEmail = searchParams.get('email')
 
   const form = useForm<SignUpInput>({
     resolver: zodResolver(signUpSchema),
     defaultValues: {
       full_name: '',
-      email: '',
+      email: invitationEmail || '',
       password: '',
       confirm_password: '',
     },
   })
+
+  // Update email field when invitationEmail changes
+  useEffect(() => {
+    if (invitationEmail) {
+      form.setValue('email', invitationEmail)
+    }
+  }, [invitationEmail, form])
 
   const onSubmit = async (values: SignUpInput) => {
     setIsLoading(true)
@@ -43,6 +55,7 @@ export default function SignupPage() {
         email: values.email,
         password: values.password,
         fullName: values.full_name,
+        invitationToken: invitationToken || undefined,
       })
 
       if (result?.error) {

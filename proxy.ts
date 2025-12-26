@@ -87,11 +87,15 @@ export async function proxy(request: NextRequest) {
   }
 
   // ========================================
-  // ONBOARDING - Requires authentication only
+  // POST-AUTH FLOWS - Requires authentication only
   // ========================================
 
-  if (pathname.startsWith('/onboarding')) {
-    // User must be authenticated to access onboarding
+  if (
+    pathname.startsWith('/onboarding') ||
+    pathname.startsWith('/after-signup') ||
+    pathname.startsWith('/join-organization')
+  ) {
+    // User must be authenticated to access these pages
     if (!user) {
       const url = request.nextUrl.clone()
       url.pathname = '/login'
@@ -99,7 +103,7 @@ export async function proxy(request: NextRequest) {
       url.searchParams.set('redirectTo', pathname)
       return NextResponse.redirect(url)
     }
-    // User is authenticated - allow access
+    // User is authenticated - allow access (they can still be without organization)
     return supabaseResponse
   }
 
